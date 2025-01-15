@@ -1,0 +1,1678 @@
+---
+title: "Script Marion Analyses"
+author: "Marion Boisseaux"
+date: "2025-01-14"
+output: html_document
+---
+
+C3C4 Grasses CALSTATE LA 
+
+#libraries 
+
+```{r}
+library(ggplot2)
+library(agricolae)
+library(plyr)
+library(multcomp)
+library(corrplot)
+library(factoextra)
+library(readxl)
+library(dplyr)
+library(ggpubr)
+library(cowplot)
+```
+
+#Leaf dehydration and recovery assay
+
+##data 
+SRC, data loading, variable calculation, outliers, means 
+```{r}
+SRCdata <- read_xlsx(path = "../data/C3C4 Grasses - OV monitoring, SRC.xlsx", sheet = "C3C4G SRC") 
+
+```
+
+##variable calculations
+```{r}
+SRCdata$Metabolism<-factor(SRCdata$Metabolism)
+SRCdata$Species<-factor(SRCdata$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
+
+# variable calculation
+#T for initial, fully hydrated or turgid -- STAGE 1
+#F for after dehydration or fresh -- STAGE 2
+#R for Rehydration -- STAGE 3
+#D for dry -- STAGE 4
+
+#leaf thickness average
+SRCdata$T.LT<-rowMeans(SRCdata[c("T.LT1","T.LT2","T.LT3","T.LT4","T.LT5","T.LT6")],na.rm=T) #stage 1
+SRCdata$F.LT2 <- as.numeric(SRCdata$F.LT2)
+SRCdata$F.LT<-rowMeans(SRCdata[c("F.LT1","F.LT2","F.LT3","F.LT4","F.LT5","F.LT6")],na.rm=T) #stage 2
+SRCdata$D.LT2 <- as.numeric(SRCdata$D.LT2)
+SRCdata$D.LT<-rowMeans(SRCdata[c("D.LT1","D.LT2","D.LT3","D.LT4","D.LT5","D.LT6")],na.rm=T) #stage 4
+
+#leaf width average
+SRCdata$F.LW1 <- as.numeric(SRCdata$F.LW1)
+SRCdata$F.LW2 <- as.numeric(SRCdata$F.LW2)
+SRCdata$F.LW3 <- as.numeric(SRCdata$F.LW3)
+SRCdata$F.LW4 <- as.numeric(SRCdata$F.LW4)
+SRCdata$F.LW5 <- as.numeric(SRCdata$F.LW5)
+
+SRCdata$T.LW1<-rowMeans(SRCdata[c("T.LW1","T.LW2","T.LW3")],na.rm=T) #stage 1 - middle
+SRCdata$F.LW1<-rowMeans(SRCdata[c("F.LW1","F.LW2","F.LW3")],na.rm=T) #stage 2
+SRCdata$T.LW2<-rowMeans(SRCdata[c("T.LW1","T.LW4","T.LW5")],na.rm=T) #stage 1 - base
+SRCdata$F.LW2<-rowMeans(SRCdata[c("F.LW1","F.LW4","F.LW5")],na.rm=T) #stage 2
+
+SRCdata$D.LW1 <- as.numeric(SRCdata$D.LW1)
+SRCdata$D.LW2 <- as.numeric(SRCdata$D.LW2)
+SRCdata$D.LW3 <- as.numeric(SRCdata$D.LW3)
+SRCdata$D.LW4 <- as.numeric(SRCdata$D.LW4)
+SRCdata$D.LW5 <- as.numeric(SRCdata$D.LW5)
+
+SRCdata$D.LW<-rowMeans(SRCdata[c("D.LW1","D.LW2","D.LW3","D.LW4","D.LW5")],na.rm=T) #stage 4
+
+#Leaf volume 
+SRCdata$F.LA <- as.numeric(SRCdata$F.LA)
+SRCdata$D.LA <- as.numeric(SRCdata$D.LA)
+
+SRCdata$T.LV<-SRCdata$T.LA*SRCdata$T.LT/10 #stage 1
+SRCdata$F.LV<-SRCdata$F.LA*SRCdata$F.LT/10 #stage 2
+SRCdata$D.LV<-SRCdata$D.LA*SRCdata$D.LT/10  #stage 4
+
+```
+
+#PLX : Leaf percentage loss of X variable
+```{r}
+
+#Leaf percentage loss during dehydration: thickness
+SRCdata$F.PLT<-100-SRCdata$F.LT/SRCdata$T.LT*100 #stage 2 leaf thickness compared to stage 1 leaf thickness
+SRCdata$D.PLT<-100-SRCdata$D.LT/SRCdata$T.LT*100 #stage 4 dry leaf thickness compared to stage 4 
+
+#Leaf percentage loss during dehydration: leaf area
+SRCdata$F.PLA<-100-SRCdata$F.LA/SRCdata$T.LA*100
+SRCdata$D.PLA<-100-SRCdata$D.LA/SRCdata$T.LA*100
+
+#Leaf percentage loss during dehydration: leaf width
+SRCdata$F.PLW1<-100-SRCdata$F.LW1/SRCdata$T.LW1*100
+SRCdata$D.PLW1<-100-SRCdata$D.LW/SRCdata$T.LW1*100
+
+#Leaf percentage loss during dehydration: leaf length
+SRCdata$F.LLe <- as.numeric(SRCdata$F.LLe)
+SRCdata$T.LLe <- as.numeric(SRCdata$T.LLe)
+SRCdata$D.LLe <- as.numeric(SRCdata$D.LLe)
+SRCdata$F.PLLe<-100-SRCdata$F.LLe/SRCdata$T.LLe*100
+SRCdata$D.PLLe<-100-SRCdata$D.LLe/SRCdata$T.LLe*100
+
+##Leaf percentage loss during dehydration: leaf volume
+SRCdata$F.PLV<-100-SRCdata$F.LV/SRCdata$T.LV*100
+SRCdata$D.PLV<-100-SRCdata$D.LV/SRCdata$T.LV*100
+
+```
+
+#RWC calculations & other variables
+```{r}
+#RWC calculations
+SRCdata$T.SWC<-(SRCdata$TW-SRCdata$DW)/SRCdata$DW
+SRCdata$F.SWC<-(SRCdata$FW-SRCdata$DW)/SRCdata$DW
+SRCdata$R.SWC<-(SRCdata$RW-SRCdata$DW)/SRCdata$DW
+SRCdata$F.RWC<-(SRCdata$FW-SRCdata$DW)/(SRCdata$TW-SRCdata$DW)*100
+
+#??
+SRCdata$F.1_LWi.LWhy<-1-SRCdata$FW/SRCdata$TW #???
+
+#LMA, leaf density, LDMC, 
+SRCdata$LMA<-SRCdata$DW/1000/(SRCdata$T.LA/10000)
+SRCdata$LD<-SRCdata$DW/1000/SRCdata$T.LV
+SRCdata$LDMC<-SRCdata$DW/SRCdata$TW
+
+#Rehydration capacity PLRC = 100- LW_rehy / LW_full saturation *100
+#what the leaf recovers compared to its full turgid capacity
+SRCdata$PLRC<-100-SRCdata$R.SWC/SRCdata$T.SWC*100
+```
+
+# SRC, outliers
+
+```{r}
+# PLRC of -20% 
+#SRCdata$Species[!SRCdata$PLRC>-20] (Chga and Hovu)
+SRCdata$PLRC[!SRCdata$PLRC>-20]<-NA #why input NA for the two values: -23.9 and -21.5?
+
+```
+
+#Species 
+## AVSA
+
+Question; what's the justification to put NAs for ex. Leaf 22 column 5 though 84 ??? 
+```{r}
+# Avsa
+#SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==17,5:84]<-NA
+#SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==20,5:84]<-NA
+#SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==21,5:84]<-NA
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==22,5:84]<-NA # FvFm
+#SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==24,5:84]<-NA
+#SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==25,5:84]<-NA
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==26,5:84]<-NA # FvFm
+#SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==29,5:84]<-NA
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==30,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==31,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==32,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==43,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==44,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==45,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==46,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==47,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==49,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==51,5:84]<-NA # too small leaf (!)
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==52,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==53,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==54,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==55,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==56,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==57,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==59,5:84]<-NA # PLA
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==17,84]<-NA # only PLRC
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==20,84]<-NA # only PLRC
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==21,84]<-NA # only PLRC
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==24,84]<-NA # only PLRC
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==25,84]<-NA # only PLRC
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==24,74]<-NA # only D.PLLe - to check photos!
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==27,74]<-NA # only D.PLLe - to check photos!
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==28,74]<-NA # only D.PLLe - to check photos!
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==65,74]<-NA # only D.PLLe - to check photos!
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==66,74]<-NA # only D.PLLe - to check photos!
+SRCdata[SRCdata$Species=="Avsa" & SRCdata$Leaf==48,70]<-NA # only D.PLA - to check photos!
+```
+
+
+## Chga
+```{r}
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==1,5:84]<-NA # PLT - to check
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==6,5:84]<-NA # PLA - to check photos!
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==9,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==21,5:84]<-NA # PLT - to check
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==22,5:84]<-NA # LMA vs LDMC
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==24,74]<-NA # only D.PLLe - to check photos!
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==25,5:84]<-NA # LMA vs LDMC
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==30,5:84]<-NA # PLT - to check
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==31,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==32,5:84]<-NA # PLRC
+SRCdata[SRCdata$Species=="Chga" & SRCdata$Leaf==48,5:84]<-NA # FvFm
+```
+
+
+## Hovu
+```{r}
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==3,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==4,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==5,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==6,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==7,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==8,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==15,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==17,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==19,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==49,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==50,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==56,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==55,84]<-NA # only PLRC
+SRCdata[SRCdata$Species=="Hovu" & SRCdata$Leaf==14,c(69,75)]<-NA # only PLA, PLV - to check photos!
+```
+
+
+## Pegl 
+```{r}
+SRCdata[SRCdata$Species=="Pegl" & SRCdata$Leaf==35,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Pegl" & SRCdata$Leaf==38,74]<-NA # only D.PLLe - to check photos!
+SRCdata[SRCdata$Species=="Pegl" & SRCdata$Leaf==42,74]<-NA # only D.PLLe - to check photos!
+```
+
+
+## Trae
+```{r}
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==8,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==9,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==10,5:84]<-NA # FvFm
+#SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==18,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==20,5:84]<-NA # FvFm
+#SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==23,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==28,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==29,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==30,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==31,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==32,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==45,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==46,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==47,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==49,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==50,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==52,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==53,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Trae" & SRCdata$Leaf==42,44]<-NA # only R FvFm - to check!
+```
+
+
+## Zema
+```{r}
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==8,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==10,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==15,5:84]<-NA # LDMC vs LD
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==20,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==23,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==34,5:84]<-NA # FvFm
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==24,84]<-NA # only PLRC
+SRCdata[SRCdata$Species=="Zema" & SRCdata$Leaf==6,c(70,76)]<-NA # only DPLA, DPLV - to check photos!
+```
+
+
+## means 
+```{r}
+m.SRCdata<-ddply(SRCdata,c("Species","Metabolism"),summarise,
+                m.LMA=mean(LMA,na.rm=TRUE),n.LMA=sum(!is.na(LMA)),se.LMA=sd(LMA,na.rm=T)/sqrt(n.LMA),
+                m.T.LT=mean(T.LT,na.rm=TRUE),n.T.LT=sum(!is.na(T.LT)),se.T.LT=sd(T.LT,na.rm=T)/sqrt(n.T.LT),
+                m.LD=mean(LD,na.rm=TRUE),n.LD=sum(!is.na(LD)),se.LD=sd(LD,na.rm=T)/sqrt(n.LD),
+                m.LDMC=mean(LDMC,na.rm=TRUE),n.LDMC=sum(!is.na(LDMC)),se.LDMC=sd(LDMC,na.rm=T)/sqrt(n.LDMC),
+                m.D.PLT=mean(D.PLT,na.rm=TRUE),n.D.PLT=sum(!is.na(D.PLT)),se.D.PLT=sd(D.PLT,na.rm=T)/sqrt(n.D.PLT),
+                m.D.PLA=mean(D.PLA,na.rm=TRUE),n.D.PLA=sum(!is.na(D.PLA)),se.D.PLA=sd(D.PLA,na.rm=T)/sqrt(n.D.PLA),
+                m.D.PLV=mean(D.PLV,na.rm=TRUE),n.D.PLV=sum(!is.na(D.PLV)),se.D.PLV=sd(D.PLV,na.rm=T)/sqrt(n.D.PLV),
+                m.D.PLLe=mean(D.PLLe,na.rm=TRUE),n.D.PLLe=sum(!is.na(D.PLLe)),se.D.PLLe=sd(D.PLLe,na.rm=T)/sqrt(n.D.PLLe),
+                m.D.PLW1=mean(D.PLW1,na.rm=TRUE),n.D.PLW1=sum(!is.na(D.PLW1)),se.D.PLW1=sd(D.PLW1,na.rm=T)/sqrt(n.D.PLW1))
+```
+
+#Analysis
+
+##leaf structure
+```{r}
+## SRC, boxplots, stat analysis ####
+
+# LMA
+plot_LMA<-ggplot(SRCdata,aes(x=Species,y=LMA,fill=Metabolism))+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  theme_minimal()+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+   ggtitle(expression(paste("LMA (g m"^-2,")")))+
+  #geom_point(data=GExdata.0[GExdata.0$Dataset=="Dehydration",],aes(x=Species,y=LMA),size=4,shape=21,fill="yellow")+
+  ylim(0,50)+
+  #geom_hline(yintercept=0,lty=2)+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  #ylab(expression(paste("LMA (g m"^-2,")")))+
+  annotate("text",x=1,y=7,label=expression(paste(italic(bar("x"))," = 31.1")),size=4)+
+  annotate("text",x=1,y=4,label=expression(paste(italic("n")," = 49")),size=4)+
+  annotate("text",x=2,y=7,label=expression(paste("21.2")),size=4)+
+  annotate("text",x=2,y=4,label=expression(paste("48")),size=4)+
+  annotate("text",x=3,y=7,label=expression(paste("27.4")),size=4)+
+  annotate("text",x=3,y=4,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=7,label=expression(paste("24.7")),size=4)+
+  annotate("text",x=4,y=4,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=7,label=expression(paste("20.6")),size=4)+
+  annotate("text",x=5,y=4,label=expression(paste("42")),size=4)+
+  annotate("text",x=6,y=7,label=expression(paste("27.5")),size=4)+
+  annotate("text",x=6,y=4,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","LMA"],na.rm=T)+4,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","LMA"],na.rm=T)+4,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","LMA"],na.rm=T)+4,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","LMA"],na.rm=T)+4,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","LMA"],na.rm=T)+4,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","LMA"],na.rm=T)+4,label=expression(paste(bold("b"))),size=5)
+plot_LMA
+
+# stat
+lm1<-lm(LMA~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+# LT
+plot_LT<-ggplot(SRCdata,aes(x=Species,y=T.LT,fill=Metabolism))+
+  theme_minimal()+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+  #geom_point(data=GExdata.0[GExdata.0$Dataset=="Dehydration",],aes(x=Species,y=LMA),size=4,shape=21,fill="yellow")+
+  ylim(0,0.4)+
+  #geom_hline(yintercept=0,lty=2)+
+  ggtitle("LT (mm)")+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=0.056,label=expression(paste(italic(bar("x"))," = 0.22")),size=4)+
+  annotate("text",x=1,y=0.032,label=expression(paste(italic("n")," = 49")),size=4)+
+  annotate("text",x=2,y=0.056,label=expression(paste("0.19")),size=4)+
+  annotate("text",x=2,y=0.032,label=expression(paste("48")),size=4)+
+  annotate("text",x=3,y=0.056,label=expression(paste("0.17")),size=4)+
+  annotate("text",x=3,y=0.032,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=0.056,label=expression(paste("0.13")),size=4)+
+  annotate("text",x=4,y=0.032,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=0.056,label=expression(paste("0.16")),size=4)+
+  annotate("text",x=5,y=0.032,label=expression(paste("42")),size=4)+
+  annotate("text",x=6,y=0.056,label=expression(paste("0.12")),size=4)+
+  annotate("text",x=6,y=0.032,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","T.LT"],na.rm=T)+0.032,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","T.LT"],na.rm=T)+0.032,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","T.LT"],na.rm=T)+0.032,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","T.LT"],na.rm=T)+0.032,label=expression(paste(bold("d"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","T.LT"],na.rm=T)+0.032,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","T.LT"],na.rm=T)+0.032,label=expression(paste(bold("e"))),size=5)
+plot_LT
+
+# stat
+lm1<-lm(T.LT~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+# LD
+plot_LD<-ggplot(SRCdata,aes(x=Species,y=LD,fill=Metabolism))+
+  theme_minimal()+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+  #geom_point(data=GExdata.0[GExdata.0$Dataset=="Dehydration",],aes(x=Species,y=LMA),size=4,shape=21,fill="yellow")+
+  ylim(0,0.4)+
+  #geom_hline(yintercept=0,lty=2)+
+  ggtitle(expression(paste("LD (g cm"^-3,")")))+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=0.040,label=expression(paste(italic(bar("x"))," = 0.14")),size=4)+
+  annotate("text",x=1,y=0.016,label=expression(paste(italic("n")," = 49")),size=4)+
+  annotate("text",x=2,y=0.040,label=expression(paste("0.11")),size=4)+
+  annotate("text",x=2,y=0.016,label=expression(paste("48")),size=4)+
+  annotate("text",x=3,y=0.040,label=expression(paste("0.17")),size=4)+
+  annotate("text",x=3,y=0.016,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=0.040,label=expression(paste("0.19")),size=4)+
+  annotate("text",x=4,y=0.016,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=0.040,label=expression(paste("0.13")),size=4)+
+  annotate("text",x=5,y=0.016,label=expression(paste("42")),size=4)+
+  annotate("text",x=6,y=0.040,label=expression(paste("0.24")),size=4)+
+  annotate("text",x=6,y=0.016,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","LD"],na.rm=T)+0.032,label=expression(paste(bold("d"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","LD"],na.rm=T)+0.032,label=expression(paste(bold("e"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","LD"],na.rm=T)+0.032,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","LD"],na.rm=T)+0.032,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","LD"],na.rm=T)+0.032,label=expression(paste(bold("d"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","LD"],na.rm=T)+0.032,label=expression(paste(bold("a"))),size=5)
+plot_LD
+
+# stat
+lm1<-lm(LD~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+# LDMC
+plot_LDMC<-ggplot(SRCdata,aes(x=Species,y=LDMC,fill=Metabolism))+
+  theme_minimal()+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+  #geom_point(data=GExdata.0[GExdata.0$Dataset=="Dehydration",],aes(x=Species,y=LMA),size=4,shape=21,fill="yellow")+
+  ylim(0,0.3)+
+  #geom_hline(yintercept=0,lty=2)+
+  ggtitle(expression(paste("LDMC (g g"^-1,")")))+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  #ylab(expression(paste("LDMC (g g"^-1,")")))+
+  annotate("text",x=1,y=0.024,label=expression(paste(italic(bar("x"))," = 0.13")),size=4)+
+  annotate("text",x=1,y=0,label=expression(paste(italic("n")," = 44")),size=4)+
+  annotate("text",x=2,y=0.024,label=expression(paste("0.11")),size=4)+
+  annotate("text",x=2,y=0,label=expression(paste("47")),size=4)+
+  annotate("text",x=3,y=0.024,label=expression(paste("0.16")),size=4)+
+  annotate("text",x=3,y=0,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=0.024,label=expression(paste("0.11")),size=4)+
+  annotate("text",x=4,y=0,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=0.024,label=expression(paste("0.10")),size=4)+
+  annotate("text",x=5,y=0,label=expression(paste("41")),size=4)+
+  annotate("text",x=6,y=0.024,label=expression(paste("0.16")),size=4)+
+  annotate("text",x=6,y=0,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","LDMC"],na.rm=T)+0.024,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","LDMC"],na.rm=T)+0.024,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","LDMC"],na.rm=T)+0.024,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","LDMC"],na.rm=T)+0.024,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","LDMC"],na.rm=T)+0.024,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","LDMC"],na.rm=T)+0.024,label=expression(paste(bold("a"))),size=5)
+
+plot_LDMC
+# stat
+lm1<-lm(LDMC~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+
+##all graphs for leaf structure
+
+Leaf_structure<- ggarrange(plot_LMA, plot_LT, plot_LD, plot_LDMC, ncol = 2, nrow = 2, common.legend= TRUE, legend = "bottom")
+Leaf_structure
+
+ggsave(filename = "../results/leaf_structure.jpg", plot = Leaf_structure)
+```
+
+##leaf percentage loss
+```{r}
+# PLTdry
+PLTdry_plot<-ggplot(SRCdata,aes(x=Species,y=D.PLT,fill=Metabolism))+
+   geom_boxplot(lwd=0.2,fatten=5)+
+  theme_minimal()+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+   ggtitle(expression(paste("PL Thickness"["dry"]," (%)")))+
+  ylim(0,100)+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.position = "none",
+        #legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  #ylab()+
+  annotate("text",x=1,y=10,label=expression(paste(italic(bar("x"))," = 46.1")),size=4)+
+  annotate("text",x=1,y=4,label=expression(paste(italic("n")," = 49")),size=4)+
+  annotate("text",x=2,y=10,label=expression(paste("69.8")),size=4)+
+  annotate("text",x=2,y=4,label=expression(paste("48")),size=4)+
+  annotate("text",x=3,y=10,label=expression(paste("45.8")),size=4)+
+  annotate("text",x=3,y=4,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=10,label=expression(paste("56.5")),size=4)+
+  annotate("text",x=4,y=4,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=10,label=expression(paste("69.2")),size=4)+
+  annotate("text",x=5,y=4,label=expression(paste("42")),size=4)+
+  annotate("text",x=6,y=10,label=expression(paste("46.4")),size=4)+
+  annotate("text",x=6,y=4,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","D.PLT"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","D.PLT"],na.rm=T)+8,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","D.PLT"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","D.PLT"],na.rm=T)+8,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","D.PLT"],na.rm=T)+8,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","D.PLT"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)
+
+PLTdry_plot
+# stat
+lm1<-lm(D.PLT~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+# PLAdry
+PLAdry_plot<-ggplot(SRCdata,aes(x=Species,y=D.PLA,fill=Metabolism))+
+   geom_boxplot(lwd=0.2,fatten=5)+
+  theme_minimal()+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+   ggtitle(expression(paste("PL Area"["dry"]," (%)")))+
+  ylim(10,90)+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.position = "none",
+        #legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=21.2,label=expression(paste(italic(bar("x"))," = 49.4")),size=4)+
+  annotate("text",x=1,y=16.4,label=expression(paste(italic("n")," = 48")),size=4)+
+  annotate("text",x=2,y=21.2,label=expression(paste("43.7")),size=4)+
+  annotate("text",x=2,y=16.4,label=expression(paste("46")),size=4)+
+  annotate("text",x=3,y=21.2,label=expression(paste("45.8")),size=4)+
+  annotate("text",x=3,y=16.4,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=21.2,label=expression(paste("60.2")),size=4)+
+  annotate("text",x=4,y=16.4,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=21.2,label=expression(paste("53.0")),size=4)+
+  annotate("text",x=5,y=16.4,label=expression(paste("41")),size=4)+
+  annotate("text",x=6,y=21.2,label=expression(paste("63.1")),size=4)+
+  annotate("text",x=6,y=16.4,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","D.PLA"],na.rm=T)+6.4,label=expression(paste(bold("bc"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","D.PLA"],na.rm=T)+6.4,label=expression(paste(bold("d"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","D.PLA"],na.rm=T)+6.4,label=expression(paste(bold("cd"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","D.PLA"],na.rm=T)+6.4,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","D.PLA"],na.rm=T)+6.4,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","D.PLA"],na.rm=T)+6.4,label=expression(paste(bold("a"))),size=5)
+
+PLAdry_plot
+
+# stat
+lm1<-lm(D.PLA~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+
+# PLLedry
+PLLedry_plot<-ggplot(SRCdata,aes(x=Species,y=D.PLLe,fill=Metabolism))+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  theme_minimal()+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+   ggtitle(expression(paste("PL Length"["dry"]," (%)")))+
+  ylim(-15,20)+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.position = "none",
+        #legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=-6,label=expression(paste(italic(bar("x"))," = 1.9")),size=4)+
+  annotate("text",x=1,y=-8,label=expression(paste(italic("n")," = 41")),size=4)+
+  annotate("text",x=2,y=-6,label=expression(paste("2.0")),size=4)+
+  annotate("text",x=2,y=-8,label=expression(paste("46")),size=4)+
+  annotate("text",x=3,y=-6,label=expression(paste("1.4")),size=4)+
+  annotate("text",x=3,y=-8,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=-6,label=expression(paste("2.9")),size=4)+
+  annotate("text",x=4,y=-8,label=expression(paste("39")),size=4)+
+  annotate("text",x=5,y=-6,label=expression(paste("3.2")),size=4)+
+  annotate("text",x=5,y=-8,label=expression(paste("42")),size=4)+
+  annotate("text",x=6,y=-6,label=expression(paste("3.4")),size=4)+
+  annotate("text",x=6,y=-8,label=expression(paste("41")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","D.PLLe"],na.rm=T)+3,label=expression(paste(bold("bc"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","D.PLLe"],na.rm=T)+3,label=expression(paste(bold("bc"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","D.PLLe"],na.rm=T)+3,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","D.PLLe"],na.rm=T)+3,label=expression(paste(bold("ab"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","D.PLLe"],na.rm=T)+3,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","D.PLLe"],na.rm=T)+3,label=expression(paste(bold("a"))),size=5)
+
+PLLedry_plot
+# stat
+lm1<-lm(D.PLLe~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+# PLWidry (PLW1dry)
+PLWdry_plot<-ggplot(SRCdata,aes(x=Species,y=D.PLW1,fill=Metabolism))+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  theme_minimal()+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+   ggtitle(expression(paste("PL Width"["dry"]," (%)")))+
+  ylim(0,100)+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.position = "none",
+        #legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=14,label=expression(paste(italic(bar("x"))," = 49.0")),size=4)+
+  annotate("text",x=1,y=8,label=expression(paste(italic("n")," = 49")),size=4)+
+  annotate("text",x=2,y=14,label=expression(paste("44.9")),size=4)+
+  annotate("text",x=2,y=8,label=expression(paste("46")),size=4)+
+  annotate("text",x=3,y=14,label=expression(paste("46.8")),size=4)+
+  annotate("text",x=3,y=8,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=14,label=expression(paste("57.9")),size=4)+
+  annotate("text",x=4,y=8,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=14,label=expression(paste("56.3")),size=4)+
+  annotate("text",x=5,y=8,label=expression(paste("42")),size=4)+
+  annotate("text",x=6,y=14,label=expression(paste("61.6")),size=4)+
+  annotate("text",x=6,y=8,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","D.PLW1"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","D.PLW1"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","D.PLW1"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","D.PLW1"],na.rm=T)+8,label=expression(paste(bold("ab"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","D.PLW1"],na.rm=T)+8,label=expression(paste(bold("b"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","D.PLW1"],na.rm=T)+8,label=expression(paste(bold("a"))),size=5)
+
+PLWdry_plot
+
+# stat
+lm1<-lm(D.PLW1~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+
+# PLV (PLW1dry)
+PLV_plot<-ggplot(SRCdata,aes(x=Species,y=D.PLV,fill=Metabolism))+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  theme_minimal()+
+  scale_fill_manual(values=c("#E1BE6A", "#40B0A6"))+
+   ggtitle(expression(paste("PL Volume"["dry"]," (%)")))+
+  ylim(40,110)+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.text=element_text(size=13),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=50,label=expression(paste(italic(bar("x"))," = 71.6")),size=4)+
+  annotate("text",x=1,y=45,label=expression(paste(italic("n")," = 49")),size=4)+
+  annotate("text",x=2,y=50,label=expression(paste("82.5")),size=4)+
+  annotate("text",x=2,y=45,label=expression(paste("46")),size=4)+
+  annotate("text",x=3,y=50,label=expression(paste("70.5")),size=4)+
+  annotate("text",x=3,y=45,label=expression(paste("38")),size=4)+
+  annotate("text",x=4,y=50,label=expression(paste("82.7")),size=4)+
+  annotate("text",x=4,y=45,label=expression(paste("41")),size=4)+
+  annotate("text",x=5,y=50,label=expression(paste("85.3")),size=4)+
+  annotate("text",x=5,y=45,label=expression(paste("41")),size=4)+
+  annotate("text",x=6,y=50,label=expression(paste("80.2")),size=4)+
+  annotate("text",x=6,y=45,label=expression(paste("42")),size=4)+
+  annotate("text",x=1,y=max(SRCdata[SRCdata$Species=="Avsa","D.PLV"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=2,y=max(SRCdata[SRCdata$Species=="Hovu","D.PLV"],na.rm=T)+8,label=expression(paste(bold("ab"))),size=5)+
+  annotate("text",x=3,y=max(SRCdata[SRCdata$Species=="Trae","D.PLV"],na.rm=T)+8,label=expression(paste(bold("c"))),size=5)+
+  annotate("text",x=4,y=max(SRCdata[SRCdata$Species=="Pegl","D.PLV"],na.rm=T)+8,label=expression(paste(bold("ab"))),size=5)+
+  annotate("text",x=5,y=max(SRCdata[SRCdata$Species=="Zema","D.PLV"],na.rm=T)+8,label=expression(paste(bold("a"))),size=5)+
+  annotate("text",x=6,y=max(SRCdata[SRCdata$Species=="Chga","D.PLV"],na.rm=T)+8,label=expression(paste(bold("b"))),size=5)
+
+PLV_plot
+
+
+# stat
+lm1<-lm(D.PLV~Species,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+##all graphs for leaf structure
+
+# Extract the legend
+legend <- get_legend(
+  PLV_plot +
+    theme(legend.position = "right", text = element_text(size=20)) # Adjust position if needed
+)
+
+#legend <- plot(legend) #to check if it plots
+
+#now remove the legend from the PLV plot
+PLV_plot <- PLV_plot + theme(legend.position = "none")
+
+Percent_loss_dry<- ggarrange(PLTdry_plot, PLAdry_plot, PLLedry_plot, PLWdry_plot, PLV_plot, legend, ncol =3, nrow = 2)
+
+Percent_loss_dry
+
+ggsave(filename = "../results/Percentloss_dry.jpg", plot = Percent_loss_dry, width = 12, height = 8)
+
+```
+
+
+## Scatterplots - LMA components
+
+```{r}
+# LMA, components ####
+
+# Reorder Species factor
+SRCdata$Species <- factor(SRCdata$Species, levels = c("Avsa", "Pegl" , "Trae", "Zema", "Hovu", "Chga"))
+
+# LMA vs LT
+
+
+
+LMA_LT<-ggplot(SRCdata,aes(x=T.LT,y=LMA,colour=Metabolism,shape=Species, lty = Species))+
+  geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+   ylim(7,45)+
+  xlim(0.06,0.31)+
+  #geom_hline(yintercept=0,lty=2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+    lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  ylab(expression(paste("LMA (g m"^-2,")")))+
+  xlab(expression(paste("LT (mm)")))+
+  annotate("text",x=0.17,y=10,na.rm=T,label=expression(paste(italic("LT: P < 0.001, Sp: P < 0.001, LT x Sp: P = 0.347; R2 = 0.64 "))),size=3)
+
+
+LMA_LT
+
+# stat
+lm1<-lm(LMA~T.LT*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+
+#ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+#summary(ph)
+
+# LMA vs LD
+LMA_LD<-ggplot(SRCdata,aes(x=LD,y=LMA,colour=Metabolism,shape=Species,lty=Species))+
+  geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  ylim(7,45)+
+  xlim(0.04,0.35)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+    lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  ylab(expression(paste("LMA (g m"^-2,")")))+
+  xlab(expression(paste("LD (g cm"^-3,")")))+
+  annotate("text",x=0.17,y=10,na.rm=T,label=expression(paste(italic("LD: P < 0.001, Sp: P < 0.001, LD x Sp: P < 0.001; R2 = 0.67"))),size=3)
+
+LMA_LD
+
+# stat
+lm1<-lm(LMA~LD*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+summary(ph) #pairwise comparison: significant differences exist between certain species pairs, ex Pegl and Chga when compared to Avsa.For C3 species pairs like Hovu vs. Avsa and Trae vs. Avsa, there are no significant differences.
+
+# LMA vs LDMC
+
+LMA_LDMC<-ggplot(SRCdata,aes(x=LDMC,y=LMA,colour=Metabolism,shape=Species,lty=Species))+
+  geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  ylim(7,45)+
+  xlim(0.04,0.23)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+  lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  ylab(expression(paste("LMA (g m"^-2,")")))+
+  xlab(expression(paste("LDMC (g g"^-1,")")))+
+  annotate("text",x=0.14,y=10,na.rm=T,label=expression(paste(italic("LDMC: P < 0.001, Sp: P < 0.001, LDMC x Sp: P < 0.001; R2 = 0.80"))),size=3)
+
+
+LMA_LDMC
+
+# stat
+lm1<-lm(LMA~LDMC*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+
+ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+summary(ph)
+
+# LD vs LDMC
+
+LD_LDMC<-ggplot(SRCdata,aes(x=LDMC,y=LD,colour=Metabolism,shape=Species,lty=Species))+
+  geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  ylim(0.04,0.35)+
+  xlim(0.04,0.23)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+    lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  geom_abline(intercept=0,slope=1,colour="darkgrey")+ #slope grey line 1:1
+  ylab(expression(paste("LD (g cm"^-3,")")))+
+  xlab(expression(paste("LDMC (g g"^-1,")")))+
+  annotate("text",x=0.14,y=0.06,na.rm=T,label=expression(paste(italic("LDMC: P < 0.001, Sp: P < 0.001, LDMC x Sp: P < 0.001; R2 = 0.88"))),size=3)+
+  annotate(geom = "text", x= 0.107, y=0.05, label= expression(paste(italic("grey line 1:1"))), size= 3)
+
+
+LD_LDMC
+
+# stat
+lm1<-lm(LD~LDMC*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+summary(ph)
+
+
+# LT vs LD
+LT_LD<-ggplot(SRCdata,aes(x=LD,y=T.LT,colour=Metabolism,shape=Species,lty=Species))+
+ geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  ylim(0.06,0.31)+
+  xlim(0.04,0.35)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+    lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  ylab(expression(paste("LT (mm)")))+
+  xlab(expression(paste("LD (g cm"^-3,")")))+
+  annotate("text",x=0.18,y=0.06,na.rm=T,label=expression(paste(italic("LD: P < 0.001, Sp: P < 0.001, LD x Sp: P < 0.001; R2 = 0.72"))),size=3)
+
+LT_LD
+
+# stat
+lm1<-lm(T.LT~LD*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+
+ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+summary(ph)
+
+# LT vs LDMC
+
+LT_LDMC<-ggplot(SRCdata,aes(x=LDMC,y=T.LT,colour=Metabolism,shape=Species,lty=Species))+
+  ylim(0.06,0.31)+
+  xlim(0.04,0.23)+
+ geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm')
+        #legend.position = "none")+
+  )+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+  lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  ylab(expression(paste("LT (mm)")))+
+  xlab(expression(paste("LDMC (g g"^-1,")")))+
+  annotate("text",x=0.13,y=0.06,na.rm=T,label=expression(paste(italic("LDMC: P = 0.114, Sp: P < 0.001, LDMC x Sp: P = 0.001; R2 = 0.73"))),size=3)
+
+LT_LDMC
+
+# stat
+lm1<-lm(T.LT~LDMC*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+summary(ph)
+
+
+#all plot 
+
+LMA_component <- ggarrange(LMA_LT, LMA_LD, LMA_LDMC, LD_LDMC, LT_LD, LT_LDMC, common.legend = T, legend = "bottom", ncol = 3, nrow = 2)
+
+LMA_component 
+
+ggsave(filename = "../results/LMA_component.jpg", plot = LMA_component , width = 13.5, height = 9)
+```
+
+
+# Shrinkage
+
+```{r}
+# PLV vs PLT dry
+PLV_PLT_dry<-ggplot(SRCdata,aes(x=D.PLT,y=D.PLV,colour=Metabolism,shape=Species,lty=Species))+
+  ylim(50,99)+
+  xlim(10,90)+
+ geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm')
+        #legend.position = "none")+
+  )+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+  lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  annotate("text",x=50,y=50,na.rm=T,label=expression(paste(italic("PLTdry: P < 0.001, Sp: P < 0.001, PLTdry x Sp: P < 0.001; R2 = 0.89"))),size=3)+
+  xlab(expression(paste("PLT"[dry]," (%)")))+
+  ylab(expression(paste("PLV"[dry]," (%)")))
+  
+PLV_PLT_dry 
+
+# stat
+lm1<-lm(D.PLV~D.PLT*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+summary(ph)
+
+y_avsa = 34.63947 + 0.80176 * 50 #correct
+y_trae = 34.63947+9.32340 + (0.80176-0.22111)*50
+y_hovu = 34.63947-9.73662 + (0.80176+0.02352 )*50
+y_pegl = 34.63947+27.45534 + (0.80176-0.43615)*50
+y_zema = 34.63947+14.99134 + (0.80176-0.28431)*50
+y_chga = 34.63947+27.62275+(0.80176-0.41576 )*50
+
+# PLV vs PLA dry
+PLV_PLA_dry<-ggplot(SRCdata,aes(x=D.PLA,y=D.PLV,colour=Metabolism,shape=Species,lty=Species))+
+  ylim(50,99)+
+  xlim(20,80)+
+ geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm')
+        #legend.position = "none")+
+  )+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+  lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  annotate("text",x=50,y=50,na.rm=T,label=expression(paste(italic("PLAdry: P < 0.001, Sp: P < 0.001, PLAdry x Sp: P < 0.001; R2 = 0.78"))),size=3)+
+  xlab(expression(paste("PLA"[dry]," (%)")))+
+  ylab(expression(paste("PLV"[dry]," (%)")))
+
+y_avsa = 20.54113 + 1.04091 * 50 #correct
+y_trae = 20.54113+19.37115 + (1.04091-0.37224)*50
+y_hovu = 20.54113+39.62089 + (1.04091-0.52901 )*50
+y_pegl = 20.54113+39.94866 + (1.04091-0.67127)*50
+y_zema = 20.54113+43.59089 + (1.04091-0.64025)*50
+y_chga = 20.54113+23.08392+(1.04091-0.46169)*50
+
+PLV_PLA_dry
+
+# stat
+lm1<-lm(D.PLV~D.PLA*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+#ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+#summary(ph)
+
+#PLV_LD
+PLV_LD<-ggplot(SRCdata,aes(x=LD,y=D.PLV,colour=Metabolism,shape=Species,lty=Species))+
+  ylim(50,98)+
+  xlim(0.04,0.35)+
+  geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm')
+        #legend.position = "none")+
+  )+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+  lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  annotate("text",x=0.2,y=50,na.rm=T,label=expression(paste(italic("LD: P < 0.001, Sp: P < 0.001, LD x Sp: P < 0.001; R2 = 0.68"))),size=3)+
+  ylab(expression(paste("PLV"[dry]," (%)")))+
+  xlab(expression(paste("LD (g cm"^-3,")")))
+
+PLV_LD
+
+# stat
+lm1<-lm(D.PLV~LD*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+#ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+#summary(ph)
+
+
+#PLV  LDMC
+
+PLV_LDMC<-ggplot(SRCdata,aes(x=LDMC,y=D.PLV,colour=Metabolism,shape=Species,lty=Species))+
+  ylim(50,98)+
+  xlim(0.04,0.23)+
+  geom_point(size=2,aes(alpha=Species))+
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  scale_alpha_manual(values=c(1,0.6,0.3,1,0.6,0.3))+ 
+  scale_shape_manual(values=c(0,15,2,16,1,17))+ #open for C3, closed for C4
+  scale_linetype_manual(values=c(1,2,3,1,2,3))+
+  geom_smooth(size=1.25,alpha=0.8,method=lm,se=F)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm')
+        #legend.position = "none")+
+  )+
+  guides(shape = guide_legend(override.aes = list(size = 4)),  # Increase shape size in legend
+  lty = guide_legend(override.aes = list(color = "black", size = 0.2)),  # Make line types black and smaller
+  colour = guide_legend(ncol = 1))+
+  annotate("text",x=0.13,y=50,na.rm=T,label=expression(paste(italic("LDMC: P < 0.001, Sp: P < 0.001, LDMC x Sp: P < 0.001; R2 = 0.76"))),size=3)+
+  ylab(expression(paste("PLV"[dry]," (%)")))+
+  xlab(expression(paste("LDMC (g g"^-1,")")))
+
+PLV_LDMC
+
+# stat
+lm1<-lm(D.PLV~LDMC*Species,data=SRCdata)
+anova(lm1)
+summary(lm1)
+#ph<-glht(lm1,linfct=mcp(Species="Tukey"))
+#summary(ph)
+
+#all plot 
+
+Shrinkage_component <- ggarrange(PLV_PLT_dry, PLV_PLA_dry ,PLV_LD, PLV_LDMC, common.legend = T, legend = "bottom", ncol = 2, nrow = 2)
+
+Shrinkage_component 
+
+ggsave(filename = "../results/Shrinkage_component.jpg", plot = Shrinkage_component , width = 10, height = 7)
+
+
+```
+
+# SRC, dehydration/rehydration analysis 
+
+F for after dehydration or fresh -- STAGE 2
+R for Rehydration -- STAGE 3
+
+```{r}
+# all species, facet ####
+# FvFm
+
+SRCdata$F.FvFm <- as.numeric(SRCdata$F.FvFm)
+SRCdata$R.FvFm <- as.numeric(SRCdata$R.FvFm)
+SRCdata <- SRCdata %>%
+  mutate(Name = case_when(
+    Species =="Avsa" ~ "A. sativa",
+    Species =="Hovu"~ "H. vulgare",
+    Species =="Trae"~ "T. aestivum",
+    Species =="Zema"~ "Z. mays",
+    Species =="Pegl"~ "P. glaucum",
+    Species == "Chga"~"C. gayan"))
+
+SRCdata$Name<- as.factor(SRCdata$Name)
+SRCdata$Metabolism <- as.factor(SRCdata$Metabolism)
+
+
+# "Avsa"
+data_subset_avsa <- SRCdata[SRCdata$Species == "Avsa", ]
+
+Avsa <- ggplot(data=data_subset_avsa, aes(x=F.FvFm, y=R.FvFm, colour=Metabolism)) +
+  geom_point(size=3) +
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6")) +
+  geom_abline(intercept=0, slope=1, colour="darkgrey") +
+  geom_smooth(aes(x=F.FvFm,y=R.FvFm, colour= Metabolism), fill="grey") +
+  scale_y_continuous(limits=c(-0.25, 0.8), breaks=c(0, 0.25, 0.5, 0.75)) +
+  scale_x_continuous(limits=c(0, 0.8), breaks=c(0, 0.25, 0.5, 0.7)) +
+  theme_minimal() +
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        legend.position = "none",
+        title = element_text(face = "bold.italic")) +
+  ylab(expression(paste("F"[v], "/F"[m], " upon rehydration - stage 3"))) +
+  xlab(expression(paste("F"[v], "/F"[m], "dehydration - stage 2"))) +
+  ggtitle("A. sativa")
+
+# "Hovu"
+data_subset_Hovu <- SRCdata[SRCdata$Species == "Hovu", ]
+
+Hovu <- ggplot(data=data_subset_Hovu, aes(x=F.FvFm, y=R.FvFm, colour=Metabolism)) +
+  geom_point(size=3) +
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6")) +
+  geom_abline(intercept=0, slope=1, colour="darkgrey") +
+  geom_smooth(aes(x=F.FvFm,y=R.FvFm, colour= Metabolism), fill="grey") +
+  scale_y_continuous(limits=c(-0.25, 0.8), breaks=c(0, 0.25, 0.5, 0.75)) +
+  scale_x_continuous(limits=c(0, 0.8), breaks=c(0, 0.25, 0.5, 0.7)) +
+  theme_minimal() +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        legend.position = "none",
+        title = element_text(face = "bold.italic")) +
+  ylab(expression(paste("F"[v], "/F"[m], " upon rehydration - stage 3"))) +
+  xlab(expression(paste("F"[v], "/F"[m], "dehydration - stage 2"))) +
+  ggtitle("H. vulgare")
+
+
+# "Trae"
+data_subset_Trae <- SRCdata[SRCdata$Species == "Trae", ]
+
+Trae <- ggplot(data=data_subset_Trae, aes(x=F.FvFm, y=R.FvFm, colour=Metabolism)) +
+  geom_point(size=3) +
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6")) +
+  geom_abline(intercept=0, slope=1, colour="darkgrey") +
+  geom_smooth(aes(x=F.FvFm,y=R.FvFm, colour= Metabolism), fill="grey") +
+  scale_y_continuous(limits=c(-0.25, 0.8), breaks=c(0, 0.25, 0.5, 0.75)) +
+  scale_x_continuous(limits=c(0, 0.8), breaks=c(0, 0.25, 0.5, 0.7)) +
+  theme_minimal() +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        legend.position = "none",
+        title = element_text(face = "bold.italic")) +
+  ylab(expression(paste("F"[v], "/F"[m], " upon rehydration - stage 3"))) +
+  xlab(expression(paste("F"[v], "/F"[m], "dehydration - stage 2"))) +
+  ggtitle("T. aestivum")
+
+# "Pegl"
+data_subset_Pegl <- SRCdata[SRCdata$Species == "Pegl", ]
+
+Pegl <- ggplot(data=data_subset_Pegl, aes(x=F.FvFm, y=R.FvFm, colour=Metabolism)) +
+  geom_point(size=3) +
+  scale_colour_manual(values=c("#40B0A6")) +
+  geom_abline(intercept=0, slope=1, colour="darkgrey") +
+  geom_smooth(aes(x=F.FvFm,y=R.FvFm, colour= Metabolism), fill="grey") +
+  scale_y_continuous(limits=c(-0.25, 0.8), breaks=c(0, 0.25, 0.5, 0.75)) +
+  scale_x_continuous(limits=c(0, 0.8), breaks=c(0, 0.25, 0.5, 0.7)) +
+  theme_minimal() +
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        legend.position = "none",
+        title = element_text(face = "bold.italic")) +
+  ylab(expression(paste("F"[v], "/F"[m], " upon rehydration - stage 3"))) +
+  xlab(expression(paste("F"[v], "/F"[m], "dehydration - stage 2"))) +
+  ggtitle("P. glaucum")
+
+# "Chla"
+data_subset_Chga <- SRCdata[SRCdata$Species == "Chga", ]
+
+Chga <- ggplot(data=data_subset_Chga, aes(x=F.FvFm, y=R.FvFm, colour=Metabolism)) +
+  geom_point(size=3) +
+  scale_colour_manual(values=c("#40B0A6")) +
+  geom_abline(intercept=0, slope=1, colour="darkgrey") +
+  geom_smooth(aes(x=F.FvFm,y=R.FvFm, colour= Metabolism), fill="grey") +
+  scale_y_continuous(limits=c(-0.25, 0.8), breaks=c(0, 0.25, 0.5, 0.75)) +
+  scale_x_continuous(limits=c(0, 0.8), breaks=c(0, 0.25, 0.5, 0.7)) +
+  theme_minimal() +
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        legend.position = "none",
+        title = element_text(face = "bold.italic")) +
+  ylab(expression(paste("F"[v], "/F"[m], " upon rehydration - stage 3"))) +
+  xlab(expression(paste("F"[v], "/F"[m], "dehydration - stage 2"))) +
+  ggtitle("C. gayan")
+
+
+# "Zema"
+data_subset_Zema <- SRCdata[SRCdata$Species == "Zema", ]
+
+Zema <- ggplot(data=data_subset_Zema, aes(x=F.FvFm, y=R.FvFm, colour=Metabolism)) +
+  geom_point(size=3) +
+  scale_colour_manual(values=c("#40B0A6")) +
+  geom_abline(intercept=0, slope=1, colour="darkgrey") +
+  geom_smooth(aes(x=F.FvFm,y=R.FvFm, colour= Metabolism), fill="grey") +
+  scale_y_continuous(limits=c(-0.25, 0.8), breaks=c(0, 0.25, 0.5, 0.75)) +
+  scale_x_continuous(limits=c(0, 0.8), breaks=c(0, 0.25, 0.5, 0.7)) +
+  theme_minimal() +
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        legend.position = "none",
+        title = element_text(face = "bold.italic")) +
+  ylab(expression(paste("F"[v], "/F"[m], " upon rehydration - stage 3"))) +
+  xlab(expression(paste("F"[v], "/F"[m], "dehydration - stage 2"))) +
+  ggtitle("Z. mays")
+
+FVFM_plot <- ggarrange(Avsa, Trae, Hovu, Pegl, Chga, Zema, ncol = 3, nrow = 2)
+
+ggsave(filename = "../results/FVFM_dehydration_rehydration.jpg", plot = FVFM_plot , width = 10, height = 7)
+
+# water potential - 'mean'
+g1<-ggplot(data=SRCdata,aes(x=F.RWC,y=WPleaf2))+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_point(size=3,shape=21,fill="black",alpha=0.5)+
+  geom_smooth(aes(x=F.RWC,y=WPleaf2),color="black",fill="grey")+
+  #scale_y_continuous(limits=c(-0.25,0.8),breaks=c(0,0.25,0.5,0.75))+
+  scale_x_continuous(limits=c(0,100))+
+  #xlim(0,1)+
+  facet_wrap(~Species,ncol=3)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13,face="italic"))+
+  ylab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlab(expression(paste("RWC (%)")))
+# data per species, FvFm, PLRC ####
+# Avsa
+g1<-ggplot(SRCdata,aes(x=F.RWC,y=F.FvFm))+
+  geom_rect(data=data.frame(xmin=16,xmax=75,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_hline(yintercept=mean(SRCdata[SRCdata$Species=="Avsa","T.FvFm"],na.rm=T),color="green1",lty=2)+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=89.5,color="black",lty=2)+
+  geom_vline(xintercept=77.8,color="darkgrey",lty=2)+
+  geom_vline(xintercept=46.1,color="black",lty=3)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=0.6,color="orange",lty=2)+
+  geom_hline(yintercept=0.35,color="red",lty=2)+
+  geom_hline(yintercept=0.1,color="skyblue1",lty=2)+
+  geom_hline(yintercept=0.25,color="skyblue2",lty=2)+
+  geom_hline(yintercept=0.5,color="skyblue3",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.FvFm),size=2,shape=21,alpha=0.5,fill="green1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.FvFm),color="green1",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=R.FvFm),size=2,shape=21,alpha=0.5,fill="darkgoldenrod1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=R.FvFm),color="darkgoldenrod1",fill="lightgoldenrod1")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=PLRC/100),size=2,shape=21,alpha=0.5,fill="lightskyblue1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=PLRC/100),color="royalblue1",fill="lightskyblue1")+
+  ylim(-0.25,1)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("PLRC; dehy, rehy F"[v],"/F"[m])))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=15,y=0.97,label=expression(paste(italic("Avsa"))))
+# Hovu
+g1<-ggplot(SRCdata,aes(x=F.RWC,y=F.FvFm))+
+  geom_rect(data=data.frame(xmin=22,xmax=74,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+    alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=23,xmax=60,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+    alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=19,xmax=74,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+    alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_hline(yintercept=mean(SRCdata[SRCdata$Species=="Hovu","T.FvFm"],na.rm=T),color="green1",lty=2)+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=90.7,color="black",lty=2)+
+  geom_vline(xintercept=84.0,color="darkgrey",lty=2)+
+  geom_vline(xintercept=66.3,color="black",lty=3)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=0.6,color="orange",lty=2)+
+  geom_hline(yintercept=0.35,color="red",lty=2)+
+  geom_hline(yintercept=0.1,color="skyblue1",lty=2)+
+  geom_hline(yintercept=0.25,color="skyblue2",lty=2)+
+  geom_hline(yintercept=0.5,color="skyblue3",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.FvFm),size=2,shape=21,alpha=0.5,fill="green1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.FvFm),color="green1",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=R.FvFm),size=2,shape=21,alpha=0.5,fill="darkgoldenrod1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=R.FvFm),color="darkgoldenrod1",fill="lightgoldenrod1")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=PLRC/100),size=2,shape=21,alpha=0.5,fill="lightskyblue1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=PLRC/100),color="royalblue1",fill="lightskyblue1")+
+  ylim(-0.25,1)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("PLRC; dehy, rehy F"[v],"/F"[m])))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=15,y=0.97,label=expression(paste(italic("Hovu"))))
+# Trae
+g1<-ggplot(SRCdata,aes(x=F.RWC,y=F.FvFm))+
+  geom_rect(data=data.frame(xmin=11.5,xmax=61.5,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=23,xmax=70,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=44,xmax=72,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_hline(yintercept=mean(SRCdata[SRCdata$Species=="Trae","T.FvFm"],na.rm=T),color="green1",lty=2)+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=90.0,color="black",lty=2)+
+  geom_vline(xintercept=81.3,color="darkgrey",lty=2)+
+  geom_vline(xintercept=61.2,color="black",lty=3)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=0.6,color="orange",lty=2)+
+  geom_hline(yintercept=0.35,color="red",lty=2)+
+  geom_hline(yintercept=0.1,color="skyblue1",lty=2)+
+  geom_hline(yintercept=0.25,color="skyblue2",lty=2)+
+  geom_hline(yintercept=0.5,color="skyblue3",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.FvFm),size=2,shape=21,alpha=0.5,fill="green1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.FvFm),color="green1",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=R.FvFm),size=2,shape=21,alpha=0.5,fill="darkgoldenrod1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=R.FvFm),color="darkgoldenrod1",fill="lightgoldenrod1")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=PLRC/100),size=2,shape=21,alpha=0.5,fill="lightskyblue1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=PLRC/100),color="royalblue1",fill="lightskyblue1")+
+  ylim(-0.25,1)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("PLRC; dehy, rehy F"[v],"/F"[m])))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=15,y=0.97,label=expression(paste(italic("Trae"))))
+# Pegl
+g1<-ggplot(SRCdata,aes(x=F.RWC,y=F.FvFm))+
+  geom_rect(data=data.frame(xmin=7,xmax=9,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=20,xmax=30,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_hline(yintercept=mean(SRCdata[SRCdata$Species=="Pegl","T.FvFm"],na.rm=T),color="green1",lty=2)+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=91.2,color="black",lty=2)+
+  geom_vline(xintercept=86.2,color="darkgrey",lty=2)+
+  geom_vline(xintercept=83.8,color="black",lty=3)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=0.6,color="orange",lty=2)+
+  geom_hline(yintercept=0.35,color="red",lty=2)+
+  geom_hline(yintercept=0.1,color="skyblue1",lty=2)+
+  geom_hline(yintercept=0.25,color="skyblue2",lty=2)+
+  geom_hline(yintercept=0.5,color="skyblue3",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.FvFm),size=2,shape=21,alpha=0.5,fill="green1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.FvFm),color="green1",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=R.FvFm),size=2,shape=21,alpha=0.5,fill="darkgoldenrod1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=R.FvFm),color="darkgoldenrod1",fill="lightgoldenrod1")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=PLRC/100),size=2,shape=21,alpha=0.5,fill="lightskyblue1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=PLRC/100),color="royalblue1",fill="lightskyblue1")+
+  ylim(-0.25,1)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("PLRC; dehy, rehy F"[v],"/F"[m])))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=15,y=0.97,label=expression(paste(italic("Pegl"))))
+# Zema
+g1<-ggplot(SRCdata,aes(x=F.RWC,y=F.FvFm))+
+  geom_rect(data=data.frame(xmin=4,xmax=5,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=11,xmax=35,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_hline(yintercept=mean(SRCdata[SRCdata$Species=="Zema","T.FvFm"],na.rm=T),color="green1",lty=2)+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=91.8,color="black",lty=2)+
+  #geom_vline(xintercept=86.2,color="darkgrey",lty=2)+
+  #geom_vline(xintercept=83.8,color="black",lty=3)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=0.6,color="orange",lty=2)+
+  geom_hline(yintercept=0.35,color="red",lty=2)+
+  geom_hline(yintercept=0.1,color="skyblue1",lty=2)+
+  geom_hline(yintercept=0.25,color="skyblue2",lty=2)+
+  geom_hline(yintercept=0.5,color="skyblue3",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.FvFm),size=2,shape=21,alpha=0.5,fill="green1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.FvFm),color="green1",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=R.FvFm),size=2,shape=21,alpha=0.5,fill="darkgoldenrod1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=R.FvFm),color="darkgoldenrod1",fill="lightgoldenrod1")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=PLRC/100),size=2,shape=21,alpha=0.5,fill="lightskyblue1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=PLRC/100),color="royalblue1",fill="lightskyblue1")+
+  ylim(-0.25,1)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("PLRC; dehy, rehy F"[v],"/F"[m])))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=15,y=0.97,label=expression(paste(italic("Zema"))))
+# Chga
+g1<-ggplot(SRCdata,aes(x=F.RWC,y=F.FvFm))+
+  geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=7,xmax=40,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_hline(yintercept=mean(SRCdata[SRCdata$Species=="Chga","T.FvFm"],na.rm=T),color="green1",lty=2)+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=93.1,color="black",lty=2)+
+  geom_vline(xintercept=82.8,color="darkgrey",lty=2)+
+  geom_vline(xintercept=77.5,color="black",lty=3)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=0.6,color="orange",lty=2)+
+  geom_hline(yintercept=0.35,color="red",lty=2)+
+  geom_hline(yintercept=0.1,color="skyblue1",lty=2)+
+  geom_hline(yintercept=0.25,color="skyblue2",lty=2)+
+  geom_hline(yintercept=0.5,color="skyblue3",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.FvFm),size=2,shape=21,alpha=0.5,fill="green1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.FvFm),color="green1",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=R.FvFm),size=2,shape=21,alpha=0.5,fill="darkgoldenrod1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=R.FvFm),color="darkgoldenrod1",fill="lightgoldenrod1")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=PLRC/100),size=2,shape=21,alpha=0.5,fill="lightskyblue1")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=PLRC/100),color="royalblue1",fill="lightskyblue1")+
+  ylim(-0.25,1)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("PLRC; dehy, rehy F"[v],"/F"[m])))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=15,y=0.97,label=expression(paste(italic("Chga"))))
+
+# data per species, Shrinkage ####
+# Avsa
+g1<-ggplot()+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=89.5,color="black",lty=2)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=10,color="grey",lty=2)+
+  geom_hline(yintercept=25,color="darkgrey",lty=2)+
+  geom_hline(yintercept=50,color="black",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+  ylim(-10,100)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=75,y=97,label=expression(paste(italic("Avsa"))))
+# Hovu
+g1<-ggplot()+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=90.7,color="black",lty=2)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=10,color="grey",lty=2)+
+  geom_hline(yintercept=25,color="darkgrey",lty=2)+
+  geom_hline(yintercept=50,color="black",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+  ylim(-10,100)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=75,y=97,label=expression(paste(italic("Hovu"))))
+# Trae
+g1<-ggplot()+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=90.0,color="black",lty=2)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=10,color="grey",lty=2)+
+  geom_hline(yintercept=25,color="darkgrey",lty=2)+
+  geom_hline(yintercept=50,color="black",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+  ylim(-10,100)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=75,y=97,label=expression(paste(italic("Trae"))))
+# Pegl
+g1<-ggplot()+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=91.2,color="black",lty=2)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=10,color="grey",lty=2)+
+  geom_hline(yintercept=25,color="darkgrey",lty=2)+
+  geom_hline(yintercept=50,color="black",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+  ylim(-10,100)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=75,y=97,label=expression(paste(italic("Pegl"))))
+# Zema
+g1<-ggplot()+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=91.8,color="black",lty=2)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=10,color="grey",lty=2)+
+  geom_hline(yintercept=25,color="darkgrey",lty=2)+
+  geom_hline(yintercept=50,color="black",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+  ylim(-10,100)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=75,y=97,label=expression(paste(italic("Zema"))))
+# Chga
+g1<-ggplot()+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_vline(xintercept=93.1,color="black",lty=2)+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_hline(yintercept=10,color="grey",lty=2)+
+  geom_hline(yintercept=25,color="darkgrey",lty=2)+
+  geom_hline(yintercept=50,color="black",lty=2)+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+  ylim(-10,100)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=10),
+        axis.text.y=element_text(size=9),
+        axis.title.x=element_text(size=10),
+        axis.text.x=element_text(size=9))+
+  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=75,y=97,label=expression(paste(italic("Chga"))))
+
+
+```
+
+
