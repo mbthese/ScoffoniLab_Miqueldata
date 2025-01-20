@@ -126,6 +126,17 @@ SRCdata$LDMC<-SRCdata$DW/SRCdata$TW
 #Rehydration capacity PLRC = 100- LW_rehy / LW_full saturation *100
 #what the leaf recovers compared to its full turgid capacity
 SRCdata$PLRC<-100-SRCdata$R.SWC/SRCdata$T.SWC*100
+
+#formula for the percentage loss of chlorophyll fluorescence (PLCF, in %), as an index of loss of fluorescence  capacity after dehydration
+
+# variable calculation
+#T for initial, fully hydrated or turgid -- STAGE 1
+#F for after dehydration or fresh -- STAGE 2
+#R for Rehydration -- STAGE 3
+#D for dry -- STAGE 4
+
+SRCdata$PLCF = 100* (1- (SRCdata$F.FvFm/SRCdata$T.FvFm))
+
 ```
 
 # SRC, outliers
@@ -1387,7 +1398,7 @@ plot(SRCdata_hovu$F.RWC, SRCdata_hovu$PLRC)
 lines(SRCdata_hovu$F.RWC, predict(model, list(x = SRCdata_hovu$F.RWC)), col = 'skyblue', lwd = 3)
 
 #output model
-x_seq.hovu <- seq(min(SRCdata_hovu$F.RWC,na.rm =T ), max(SRCdata_hovu$F.RWC, na.rm = T), length.out = length(SRCdata_avsa$F.RWC))
+x_seq.hovu <- seq(min(SRCdata_hovu$F.RWC,na.rm =T ), max(SRCdata_hovu$F.RWC, na.rm = T), length.out = length(SRCdata_hovu$F.RWC))
 y_model.hovu <-  102.21313   * exp(-0.03123    * x_seq.hovu ) -6.81649
 
 # Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
@@ -1668,192 +1679,547 @@ PLRC_RWC_plot
 
 ggsave(filename = "../results/PLRC_RWC_plot .jpg", plot = PLRC_RWC_plot, width = 12, height = 8)
 
-### means----------
-rating <- 1:4
-
-animal <- c('koala', 'hedgehog', 'sloth', 'panda') 
-country <- c('Australia', 'Italy', 'Peru', 'China')
-avg_sleep_hours <- c(21, 18, 17, 10)
-super_sleepers <- data.frame(rating, animal, country, avg_sleep_hours)
-data <- as.data.frame(x = Chga_10
-Chga_50)
-
-mean_RWC<-ddply(SRCdata,c("Species","Metabolism"),summarise,
-                m.LMA=mean(LMA,na.rm=TRUE),n.LMA=sum(!is.na(LMA)),se.LMA=sd(LMA,na.rm=T)/sqrt(n.LMA),
 ```
 
-#data per species, Shrinkage ####
+
+#RWC FVFM - PLCF
+```{r}
+# data per species, FvFm ####
+SRCdata$F.RWC <- as.numeric(SRCdata$F.RWC)
+SRCdata$F.FvFm <- as.numeric(SRCdata$F.FvFm)
+SRCdata$T.FvFm <- as.numeric(SRCdata$T.FvFm)
+SRCdata$R.FvFm <- as.numeric(SRCdata$R.FvFm)
+
+
+
+# Avsa ----
+
+SRCdata_avsa <- SRCdata %>% filter(Species== "Avsa")
+#find best fit model
+#E(y)=αeβx+θ
+#help from https://rpubs.com/mengxu/exponential-model
+#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 <- min(SRCdata_avsa$PLCF) * 0.5  
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(PLCF - theta.0) ~ F.RWC, data=SRCdata_avsa)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+model <- nls(PLCF ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_avsa, start = start)
+summary(model)
+
+plot(SRCdata_avsa$F.RWC, SRCdata_avsa$PLCF)
+lines(SRCdata_avsa$F.RWC, predict(model, list(x = SRCdata_avsa$F.RWC)), col = 'skyblue', lwd = 3)
+
+#output model
+x_seq.avsa <- seq(min(SRCdata_avsa$F.RWC,na.rm =T ), max(SRCdata_avsa$F.RWC, na.rm = T), length.out = length(SRCdata_avsa$F.RWC))
+y_model.avsa <-  90.687433   * exp(-0.036148   * x_seq.avsa ) -5.710108
+
+# Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
+#avsa_10= (1/-0.036148) * (log(10+5.710108) - log(90.687433))
+#avsa_50= (1/-0.036148) * (log(50+5.710108) - log(90.687433))
+
+Avsa_PLCF<-ggplot(SRCdata_avsa,aes(x=F.RWC,y=PLCF))+
+  geom_point(data=SRCdata_avsa,aes(x=F.RWC,y=PLCF, colour= Metabolism),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("#E1BE6A")) +
+  #geom_line(aes(x = x_seq.avsa, y = y_model.avsa), color = 'black', size=2, alpha=0.7)+
+  #geom_vline(xintercept=avsa_10,color="blue",lty=3)+
+  #geom_vline(xintercept=avsa_50,color="red",lty=3)+
+  ylim(-0.25,100)+
+  xlim(0,100)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("A. sativa")+
+  geom_rect(data=data.frame(xmin=16,xmax=75,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),alpha=0.05,fill="royalblue",inherit.aes=F) #shaded blue area denotes embolism events according to OV method
+Avsa_PLCF
+
+
+
+
+# Hovu -----
+SRCdata_hovu <- SRCdata %>% filter(Species== "Hovu")
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 <- min(SRCdata_hovu$PLCF, na.rm = T) * 0.5  
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(PLCF - theta.0) ~ F.RWC, data=SRCdata_hovu)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+model <- nls(PLCF ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_hovu, start = start)
+summary(model)
+
+plot(SRCdata_hovu$F.RWC, SRCdata_hovu$PLCF)
+
+#output model
+x_seq.hovu <- seq(min(SRCdata_hovu$F.RWC,na.rm =T ), max(SRCdata_hovu$F.RWC, na.rm = T), length.out = length(SRCdata_hovu$F.RWC))
+y_model.hovu <-  140.727909   * exp(-0.029974    * x_seq.hovu ) -8.513784
+
+# Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
+hovu_10= (1/-0.029974) * (log(10+8.513784) - log(140.727909))
+hovu_50= (1/-0.029974) * (log(50+8.513784) - log(140.727909))
+
+hovu_PLCF<-ggplot(SRCdata_hovu,aes(x=F.RWC,y=PLCF))+
+  geom_point(data=SRCdata_hovu,aes(x=F.RWC,y=PLCF, colour= Metabolism),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("#E1BE6A")) +
+  geom_line(aes(x = x_seq.hovu, y = y_model.hovu), color = 'black', size=2, alpha=0.7)+
+  geom_vline(xintercept=hovu_10,color="blue",lty=3)+
+  geom_vline(xintercept=hovu_50,color="red",lty=3)+
+  ylim(-0.25,100)+
+  xlim(0,100)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("H. vulgare")+
+  geom_rect(data=data.frame(xmin=22,xmax=74,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+    alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=23,xmax=60,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+    alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=19,xmax=74,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+    alpha=0.05,fill="royalblue",inherit.aes=F)
+hovu_PLCF
+
+
+# Trae -----
+SRCdata_trae <- SRCdata %>% filter(Species== "Trae")
+#find best fit model
+#E(y)=αeβx+θ
+#help from https://rpubs.com/mengxu/exponential-model
+#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 <- min(SRCdata_trae$PLCF) * 0.5  
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(PLCF - theta.0) ~ F.RWC, data=SRCdata_trae)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+model <- nls(PLCF ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_trae, start = start)
+summary(model)
+
+plot(SRCdata_trae$F.RWC, SRCdata_trae$PLCF)
+lines(SRCdata_trae$F.RWC, predict(model, list(x = SRCdata_trae$F.RWC)), col = 'skyblue', lwd = 3)
+
+#output model
+x_seq.trae <- seq(min(SRCdata_trae$F.RWC,na.rm =T ), max(SRCdata_trae$F.RWC, na.rm = T), length.out = length(SRCdata_trae$F.RWC))
+y_model.trae <-  73.578960   * exp(-0.012623   * x_seq.trae ) -21.445047
+
+# Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
+trae_10= (1/-0.012623) * (log(10+21.445047) - log(73.578960))
+trae_50= (1/-0.012623) * (log(50+21.445047) - log(73.578960))
+
+trae_PLCF<-ggplot(SRCdata_trae,aes(x=F.RWC,y=PLCF))+
+  geom_point(data=SRCdata_trae,aes(x=F.RWC,y=PLCF, colour= Metabolism),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("#E1BE6A")) +
+  #geom_line(aes(x = x_seq.trae, y = y_model.trae), color = 'black', size=2, alpha=0.7)+
+  #geom_vline(xintercept=trae_10,color="blue",lty=3)+
+  #geom_vline(xintercept=trae_50,color="red",lty=3)+
+  ylim(-0.25,100)+
+  xlim(0,100)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("T. aestivum")+
+  geom_rect(data=data.frame(xmin=11.5,xmax=61.5,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=23,xmax=70,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=44,xmax=72,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)
+trae_PLCF
+
+
+
+# Pegl ----
+SRCdata_Pegl <- SRCdata %>% filter(Species== "Pegl")
+#find best fit model
+#E(y)=αeβx+θ
+#help from https://rpubs.com/mengxu/exponential-model
+#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 <- min(SRCdata_Pegl$PLCF) * 0.5  
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(PLCF - theta.0) ~ F.RWC, data=SRCdata_Pegl)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+model <- nls(PLCF ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_Pegl, start = start)
+summary(model)
+
+plot(SRCdata_Pegl$F.RWC, SRCdata_Pegl$PLCF)
+lines(SRCdata_Pegl$F.RWC, predict(model, list(x = SRCdata_Pegl$F.RWC)), col = 'skyblue', lwd = 3)
+
+#output model
+x_seq.Pegl <- seq(min(SRCdata_Pegl$F.RWC,na.rm =T ), max(SRCdata_Pegl$F.RWC, na.rm = T), length.out = length(SRCdata_Pegl$F.RWC))
+y_model.Pegl <-  88.052445   * exp(-0.024293   * x_seq.Pegl )-10.882535
+
+# Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
+Pegl_10= (1/-0.024293) * (log(10+10.882535) - log(88.052445))
+Pegl_50= (1/-0.024293) * (log(50+10.882535) - log(88.052445))
+
+Pegl_PLCF<-ggplot(SRCdata_Pegl,aes(x=F.RWC,y=PLCF))+
+  geom_point(data=SRCdata_Pegl,aes(x=F.RWC,y=PLCF, colour= Metabolism),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("#40B0A6")) +
+  #geom_line(aes(x = x_seq.Pegl, y = y_model.Pegl), color = 'black', size=2, alpha=0.7)+
+  #geom_vline(xintercept=Pegl_10,color="blue",lty=3)+
+  #geom_vline(xintercept=Pegl_50,color="red",lty=3)+
+  ylim(-0.25,100)+
+  xlim(0,100)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("P. glaucum")+
+  geom_rect(data=data.frame(xmin=7,xmax=9,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=20,xmax=30,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)
+Pegl_PLCF
+
+
+# Zema -----
+SRCdata_Zema <- SRCdata %>% filter(Species== "Zema")
+#find best fit model
+#E(y)=αeβx+θ
+#help from https://rpubs.com/mengxu/exponential-model
+#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 <- min(SRCdata_Zema$PLCF) * 0.5  
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(PLCF - theta.0) ~ F.RWC, data=SRCdata_Zema)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+model <- nls(PLCF ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_Zema, start = start)
+summary(model)
+
+plot(SRCdata_Zema$F.RWC, SRCdata_Zema$PLCF)
+lines(SRCdata_Zema$F.RWC, predict(model, list(x = SRCdata_Zema$F.RWC)), col = 'skyblue', lwd = 3)
+
+#output model
+x_seq.Zema <- seq(min(SRCdata_Zema$F.RWC,na.rm =T ), max(SRCdata_Zema$F.RWC, na.rm = T), length.out = length(SRCdata_Zema$F.RWC))
+y_model.Zema <-  125.602294   * exp(-0.009158   * x_seq.Zema )-53.577050
+
+# Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
+Zema_10= (1/-0.009158) * (log(10+53.577050) - log(125.602294))
+Zema_50= (1/-0.009158) * (log(50+53.577050) - log(125.602294))
+
+Zema_PLCF<-ggplot(SRCdata_Zema,aes(x=F.RWC,y=PLCF))+
+  geom_point(data=SRCdata_Zema,aes(x=F.RWC,y=PLCF, colour= Metabolism),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("#40B0A6")) +
+  #geom_line(aes(x = x_seq.Zema, y = y_model.Zema), color = 'black', size=2, alpha=0.7)+
+  #geom_vline(xintercept=Zema_10,color="blue",lty=3)+
+  #geom_vline(xintercept=Zema_50,color="red",lty=3)+
+  ylim(-0.25,100)+
+  xlim(0,100)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("Z. mays")+
+  geom_rect(data=data.frame(xmin=4,xmax=5,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=11,xmax=35,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)
+Zema_PLCF
+
+# Chga----
+SRCdata_Chga <- SRCdata %>% filter(Species== "Chga")
+#find best fit model
+#E(y)=αeβx+θ
+#help from https://rpubs.com/mengxu/exponential-model
+#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 <- min(SRCdata_Chga$PLCF) * 0.5  
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(PLCF - theta.0) ~ F.RWC, data=SRCdata_Chga)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+model <- nls(PLCF ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_Chga, start = start)
+summary(model)
+
+plot(SRCdata_Chga$F.RWC, SRCdata_Chga$PLCF)
+lines(SRCdata_Chga$F.RWC, predict(model, list(x = SRCdata_Chga$F.RWC)), col = 'skyblue', lwd = 3)
+
+#output model
+x_seq.Chga <- seq(min(SRCdata_Chga$F.RWC,na.rm =T ), max(SRCdata_Chga$F.RWC, na.rm = T), length.out = length(SRCdata_Chga$F.RWC))
+y_model.Chga <-  125.602294   * exp(-0.009158   * x_seq.Chga )-53.577050
+
+# Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
+Chga_10= (1/-0.009158) * (log(10+53.577050) - log(125.602294))
+Chga_50= (1/-0.009158) * (log(50+53.577050) - log(125.602294))
+
+Chga_PLCF<-ggplot(SRCdata_Chga,aes(x=F.RWC,y=PLCF))+
+  geom_point(data=SRCdata_Chga,aes(x=F.RWC,y=PLCF, colour= Metabolism),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("#40B0A6")) +
+  #geom_line(aes(x = x_seq.Chga, y = y_model.Chga), color = 'black', size=2, alpha=0.7)+
+  #geom_vline(xintercept=Chga_10,color="blue",lty=3)+
+  #geom_vline(xintercept=Chga_50,color="red",lty=3)+
+  ylim(-0.25,100)+
+  xlim(0,100)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("C. gayan")+
+  geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_rect(data=data.frame(xmin=7,xmax=40,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+            alpha=0.05,fill="royalblue",inherit.aes=F)
+Chga_PLCF
+
+### all plots ----
+PLCF_RWC_plot <- ggarrange(Avsa_PLCF, hovu_PLCF, trae_PLCF, Pegl_PLCF, Zema_PLCF, Chga_PLCF, ncol =3, nrow = 2)
+
+PLCF_RWC_plot 
+
+ggsave(filename = "../results/PLCF_RWC_plot .jpg", plot = PLCF_RWC_plot, width = 12, height = 8)
+
+
+```
+
+#Shrinkage ####
 ```{r}
 
 
 # 
 # Avsa
-g1<-ggplot()+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_vline(xintercept=89.5,color="black",lty=2)+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_hline(yintercept=10,color="grey",lty=2)+
-  geom_hline(yintercept=25,color="darkgrey",lty=2)+
-  geom_hline(yintercept=50,color="black",lty=2)+
-  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
-  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+Avsa_shrinkage<-ggplot()+
+    geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLV),size=2,alpha=0.5,fill="#e05a12")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLV),color="#e05a12",fill="#e05a12")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLT),size=2,alpha=0.5,fill="#6fe012")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLT),color="#6fe012",fill="#6fe012")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLA),size=2,alpha=0.5,fill="#1295e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLA),color="#1295e0",fill="#1295e0")+
+  geom_point(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLW1),size=2,alpha=0.5,fill="white",colour="#9512e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Avsa",],aes(x=F.RWC,y=F.PLW1),color="#9512e0",fill="#9512e0")+
   ylim(-10,100)+
   xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=10),
-        axis.text.y=element_text(size=9),
-        axis.title.x=element_text(size=10),
-        axis.text.x=element_text(size=9))+
-  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=75,y=97,label=expression(paste(italic("Avsa"))))
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Leaf shrinkage (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("A. sativa")
+Avsa_shrinkage
+
 # Hovu
-g1<-ggplot()+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_vline(xintercept=90.7,color="black",lty=2)+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_hline(yintercept=10,color="grey",lty=2)+
-  geom_hline(yintercept=25,color="darkgrey",lty=2)+
-  geom_hline(yintercept=50,color="black",lty=2)+
-  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
-  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+Hovu_shrinkage<-ggplot()+
+    geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLV),size=2,alpha=0.5,fill="#e05a12")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLV),color="#e05a12",fill="#e05a12")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLT),size=2,alpha=0.5,fill="#6fe012")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLT),color="#6fe012",fill="#6fe012")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLA),size=2,alpha=0.5,fill="#1295e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLA),color="#1295e0",fill="#1295e0")+
+  geom_point(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLW1),size=2,alpha=0.5,fill="white",colour="#9512e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Hovu",],aes(x=F.RWC,y=F.PLW1),color="#9512e0",fill="#9512e0")+
   ylim(-10,100)+
   xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=10),
-        axis.text.y=element_text(size=9),
-        axis.title.x=element_text(size=10),
-        axis.text.x=element_text(size=9))+
-  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=75,y=97,label=expression(paste(italic("Hovu"))))
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Leaf shrinkage (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("H. vulgare")
+Hovu_shrinkage
+
 # Trae
-g1<-ggplot()+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_vline(xintercept=90.0,color="black",lty=2)+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_hline(yintercept=10,color="grey",lty=2)+
-  geom_hline(yintercept=25,color="darkgrey",lty=2)+
-  geom_hline(yintercept=50,color="black",lty=2)+
-  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
-  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+Trae_shrinkage<-ggplot()+
+    geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLV),size=2,alpha=0.5,fill="#e05a12")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLV),color="#e05a12",fill="#e05a12")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLT),size=2,alpha=0.5,fill="#6fe012")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLT),color="#6fe012",fill="#6fe012")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLA),size=2,alpha=0.5,fill="#1295e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLA),color="#1295e0",fill="#1295e0")+
+  geom_point(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLW1),size=2,alpha=0.5,fill="white",colour="#9512e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Trae",],aes(x=F.RWC,y=F.PLW1),color="#9512e0",fill="#9512e0")+
   ylim(-10,100)+
   xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=10),
-        axis.text.y=element_text(size=9),
-        axis.title.x=element_text(size=10),
-        axis.text.x=element_text(size=9))+
-  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=75,y=97,label=expression(paste(italic("Trae"))))
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Leaf shrinkage (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("T. aestivum")
+Trae_shrinkage
+
+
+
 # Pegl
-g1<-ggplot()+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_vline(xintercept=91.2,color="black",lty=2)+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_hline(yintercept=10,color="grey",lty=2)+
-  geom_hline(yintercept=25,color="darkgrey",lty=2)+
-  geom_hline(yintercept=50,color="black",lty=2)+
-  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
-  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+Pegl_shrinkage<-ggplot()+
+    geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLV),size=2,alpha=0.5,fill="#e05a12")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLV),color="#e05a12",fill="#e05a12")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLT),size=2,alpha=0.5,fill="#6fe012")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLT),color="#6fe012",fill="#6fe012")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLA),size=2,alpha=0.5,fill="#1295e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLA),color="#1295e0",fill="#1295e0")+
+  geom_point(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLW1),size=2,alpha=0.5,fill="white",colour="#9512e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Pegl",],aes(x=F.RWC,y=F.PLW1),color="#9512e0",fill="#9512e0")+
   ylim(-10,100)+
   xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=10),
-        axis.text.y=element_text(size=9),
-        axis.title.x=element_text(size=10),
-        axis.text.x=element_text(size=9))+
-  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=75,y=97,label=expression(paste(italic("Pegl"))))
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Leaf shrinkage (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("P. glaucum")
+Pegl_shrinkage
+
+
 # Zema
-g1<-ggplot()+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_vline(xintercept=91.8,color="black",lty=2)+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_hline(yintercept=10,color="grey",lty=2)+
-  geom_hline(yintercept=25,color="darkgrey",lty=2)+
-  geom_hline(yintercept=50,color="black",lty=2)+
-  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
-  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+Zema_shrinkage<-ggplot()+
+    geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLV),size=2,alpha=0.5,fill="#e05a12")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLV),color="#e05a12",fill="#e05a12")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLT),size=2,alpha=0.5,fill="#6fe012")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLT),color="#6fe012",fill="#6fe012")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLA),size=2,alpha=0.5,fill="#1295e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLA),color="#1295e0",fill="#1295e0")+
+  geom_point(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLW1),size=2,alpha=0.5,fill="white",colour="#9512e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Zema",],aes(x=F.RWC,y=F.PLW1),color="#9512e0",fill="#9512e0")+
   ylim(-10,100)+
   xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=10),
-        axis.text.y=element_text(size=9),
-        axis.title.x=element_text(size=10),
-        axis.text.x=element_text(size=9))+
-  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=75,y=97,label=expression(paste(italic("Zema"))))
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Leaf shrinkage (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("Z. mays")
+Zema_shrinkage
+
+
 # Chga
-g1<-ggplot()+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_vline(xintercept=93.1,color="black",lty=2)+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_hline(yintercept=10,color="grey",lty=2)+
-  geom_hline(yintercept=25,color="darkgrey",lty=2)+
-  geom_hline(yintercept=50,color="black",lty=2)+
-  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLV),size=2,shape=21,alpha=0.5,fill="forestgreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLV),color="forestgreen",fill="forestgreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLT),size=2,shape=21,alpha=0.5,fill="chartreuse")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLT),color="chartreuse3",fill="chartreuse")+
-  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLA),size=2,shape=21,alpha=0.5,fill="palegreen")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLA),color="chartreuse2",fill="palegreen")+
-  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLW1),size=2,shape=21,alpha=0.5,fill="white",colour="chartreuse2")+
-  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLW1),color="chartreuse2",fill="palegreen",lty=2)+
+Chga_shrinkage<-ggplot()+
+    geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLV),size=2,alpha=0.5,fill="#e05a12")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLV),color="#e05a12",fill="#e05a12")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLT),size=2,alpha=0.5,fill="#6fe012")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLT),color="#6fe012",fill="#6fe012")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLA),size=2,alpha=0.5,fill="#1295e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLA),color="#1295e0",fill="#1295e0")+
+  geom_point(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLW1),size=2,alpha=0.5,fill="white",colour="#9512e0")+
+  geom_smooth(data=SRCdata[SRCdata$Species=="Chga",],aes(x=F.RWC,y=F.PLW1),color="#9512e0",fill="#9512e0")+
   ylim(-10,100)+
   xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=10),
-        axis.text.y=element_text(size=9),
-        axis.title.x=element_text(size=10),
-        axis.text.x=element_text(size=9))+
-  ylab(expression(paste("Shrinkage; PLV,PLT,PLA,PLWi (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=75,y=97,label=expression(paste(italic("Chga"))))
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Leaf shrinkage (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("C. gayan")
+Chga_shrinkage
+
+
+### all plots ----
+shrinkage_RWC_plot <- ggarrange(Avsa_shrinkage, Hovu_shrinkage, Trae_shrinkage, Pegl_shrinkage, Zema_shrinkage, Chga_shrinkage, ncol =3, nrow = 2)
+
+shrinkage_RWC_plot 
+
+ggsave(filename = "../results/shrinkage_RWC_plot .jpg", plot = shrinkage_RWC_plot, width = 12, height = 8)
 
 ```
