@@ -2055,7 +2055,7 @@ ggsave(filename = "../results/PLCF_RWC_plot .jpg", plot = PLCF_RWC_plot, width =
 
 ```
 
-#Shrinkage ####
+#Shrinkage
 ```{r}
 
 
@@ -2223,3 +2223,668 @@ shrinkage_RWC_plot
 ggsave(filename = "../results/shrinkage_RWC_plot .jpg", plot = shrinkage_RWC_plot, width = 12, height = 8)
 
 ```
+
+#PV data
+
+```{r}
+### PV, data loading, variable calculation, means ####
+
+PVdata<-read_xlsx(path = "../data/C3C4 Grasses - PV.xlsx", sheet = "C3C4G PV R")
+
+PVdata$Metabolism<-factor(PVdata$Metabolism)
+PVdata$Species<-factor(PVdata$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
+
+# variable calculation
+# For each leaf, leaf area T.LA and thickness T.LT were measured along the PV curve and at the dry stage D.LA, D.LT for calculating the percentage loss of thickness PLT and area PLAat turgor loss point and in a dry leaf 
+PVdata$tlp.PLT<-100-PVdata$tlp.LT/PVdata$T.LT*100
+PVdata$D.PLT<-100-PVdata$D.LT/PVdata$T.LT*100
+
+PVdata$tlp.PLA<-100-PVdata$tlp.LA/PVdata$T.LA*100
+PVdata$D.PLA<-100-PVdata$D.LA/PVdata$T.LA*100
+
+PVdata$T.LV<-PVdata$T.LA*PVdata$T.LT/10
+PVdata$tlp.LV<-PVdata$tlp.LA*PVdata$tlp.LT/10
+PVdata$D.LV<-PVdata$D.LA*PVdata$D.LT/10
+
+PVdata$tlp.PLV<-100-PVdata$tlp.LV/PVdata$T.LV*100
+PVdata$D.PLV<-100-PVdata$D.LV/PVdata$T.LV*100
+
+#leaf saturated water content, LMA, density, LDMC, capacitance at full turgor and at turgor loss point (Cft and Ctlp). leaf-specific capacitances (C*) were obtained on both area and dry mass basis. bulk modulus of elasticity from total water content: --> The bulk modulus of elasticity from symplast water content (ε) was calculated as ε = ε* (1–af), following Bartlett et al (2012). The fraction of apoplastic water (af) was calculated as the 1–x intercept in the 1/Ψ vs 1–RWC relationship
+PVdata$SWCm<-(PVdata$TW-PVdata$DW)/PVdata$DW #?
+PVdata$LMA<-PVdata$DW/1000/(PVdata$T.LA/10000)
+PVdata$LD<-PVdata$DW/1000/PVdata$T.LV
+PVdata$LDMC<-PVdata$DW/PVdata$TW
+PVdata$SWCpv<-PVdata$SWpv/PVdata$DW #?
+PVdata$cft.mass<-PVdata$cft*PVdata$SWpv/PVdata$DW*1000
+PVdata$cft.area<-PVdata$cft.mass/PVdata$LMA
+PVdata$ctlp.mass<-PVdata$ctlp*PVdata$SWpv/PVdata$DW*1000
+PVdata$ctlp.area<-PVdata$ctlp.mass/PVdata$LMA
+PVdata$em<-PVdata$em.*(1-PVdata$af)
+
+# means
+m.PVdata<-ddply(PVdata,c("Species","Metabolism"),summarise,
+            m.SWCpv=mean(SWCpv,na.rm=TRUE),n.SWCpv=sum(!is.na(SWCpv)),se.SWCpv=sd(SWCpv,na.rm=T)/sqrt(n.SWCpv),
+            m.rwc.tlp=mean(rwc.tlp,na.rm=TRUE),n.rwc.tlp=sum(!is.na(rwc.tlp)),se.rwc.tlp=sd(rwc.tlp,na.rm=T)/sqrt(n.rwc.tlp),
+            m.osp.tlp=mean(osp.tlp,na.rm=TRUE),n.osp.tlp=sum(!is.na(osp.tlp)),se.osp.tlp=sd(osp.tlp,na.rm=T)/sqrt(n.osp.tlp),
+            m.osp.ft=mean(osp.ft,na.rm=TRUE),n.osp.ft=sum(!is.na(osp.ft)),se.osp.ft=sd(osp.ft,na.rm=T)/sqrt(n.osp.ft),
+            m.em.=mean(em.,na.rm=TRUE),n.em.=sum(!is.na(em.)),se.em.=sd(em.,na.rm=T)/sqrt(n.em.),
+            m.em=mean(em,na.rm=TRUE),n.em=sum(!is.na(em)),se.em=sd(em,na.rm=T)/sqrt(n.em),
+            m.af=mean(af,na.rm=TRUE),n.af=sum(!is.na(af)),se.af=sd(af,na.rm=T)/sqrt(n.af),
+            m.cft=mean(cft,na.rm=TRUE),n.cft=sum(!is.na(cft)),se.cft=sd(cft,na.rm=T)/sqrt(n.cft),
+            m.ctlp=mean(ctlp,na.rm=TRUE),n.ctlp=sum(!is.na(ctlp)),se.ctlp=sd(ctlp,na.rm=T)/sqrt(n.ctlp),
+            m.cft.area=mean(cft.area,na.rm=TRUE),n.cft.area=sum(!is.na(cft.area)),se.cft.area=sd(cft.area,na.rm=T)/sqrt(n.cft.area),
+            m.cft.mass=mean(cft.mass,na.rm=TRUE),n.cft.mass=sum(!is.na(cft.mass)),se.cft.mass=sd(cft.mass,na.rm=T)/sqrt(n.cft.mass),
+            m.ctlp.area=mean(ctlp.area,na.rm=TRUE),n.ctlp.area=sum(!is.na(ctlp.area)),se.ctlp.area=sd(ctlp.area,na.rm=T)/sqrt(n.ctlp.area),
+            m.ctlp.mass=mean(ctlp.mass,na.rm=TRUE),n.ctlp.mass=sum(!is.na(ctlp.mass)),se.ctlp.mass=sd(ctlp.mass,na.rm=T)/sqrt(n.ctlp.mass),
+            m.LMA=mean(LMA,na.rm=TRUE),n.LMA=sum(!is.na(LMA)),se.LMA=sd(LMA,na.rm=T)/sqrt(n.LMA),
+            m.T.LT=mean(T.LT,na.rm=TRUE),n.T.LT=sum(!is.na(T.LT)),se.T.LT=sd(T.LT,na.rm=T)/sqrt(n.T.LT),
+            m.LD=mean(LD,na.rm=TRUE),n.LD=sum(!is.na(LD)),se.LD=sd(LD,na.rm=T)/sqrt(n.LD),
+            m.tlp.PLT=mean(tlp.PLT,na.rm=TRUE),n.tlp.PLT=sum(!is.na(tlp.PLT)),se.tlp.PLT=sd(tlp.PLT,na.rm=T)/sqrt(n.tlp.PLT),
+            m.D.PLT=mean(D.PLT,na.rm=TRUE),n.D.PLT=sum(!is.na(D.PLT)),se.D.PLT=sd(D.PLT,na.rm=T)/sqrt(n.D.PLT),
+            m.tlp.PLA=mean(tlp.PLA,na.rm=TRUE),n.tlp.PLA=sum(!is.na(tlp.PLA)),se.tlp.PLA=sd(tlp.PLA,na.rm=T)/sqrt(n.tlp.PLA),
+            m.D.PLA=mean(D.PLA,na.rm=TRUE),n.D.PLA=sum(!is.na(D.PLA)),se.D.PLA=sd(D.PLA,na.rm=T)/sqrt(n.D.PLA),
+            m.tlp.PLV=mean(tlp.PLV,na.rm=TRUE),n.tlp.PLV=sum(!is.na(tlp.PLV)),se.tlp.PLV=sd(tlp.PLV,na.rm=T)/sqrt(n.tlp.PLV),
+            m.D.PLV=mean(D.PLV,na.rm=TRUE),n.D.PLV=sum(!is.na(D.PLV)),se.D.PLV=sd(D.PLV,na.rm=T)/sqrt(n.D.PLV))
+```
+
+## Analysis
+```{r}
+## PV, stat analysis ####
+lm1<-lm(SWCpv~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(rwc.tlp~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(osp.tlp~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(osp.ft~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(em.~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(em~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(af~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(cft~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(ctlp~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(cft.area~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(ctlp.area~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(cft.mass~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(ctlp.mass~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(LMA~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(T.LT~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(LD~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(tlp.PLT~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(D.PLT~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(tlp.PLA~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(D.PLA~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(tlp.PLV~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(D.PLV~Species,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+
+```
+
+# Gas Exchange data
+```{r}
+### GEx, data loading, variable calculation, means ####
+
+GExdata<-read_xlsx(path = "../data/C3C4 Grasses - GEx.xlsx", sheet = "C3C4G GEx R")#on Marion's PC
+
+GExdata$Dataset<-factor(GExdata$Dataset)
+GExdata$Metabolism<-factor(GExdata$Metabolism)
+GExdata$Species<-factor(GExdata$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
+GExdata$Individual<-factor(GExdata$Individual)
+GExdata$Leaf<-factor(GExdata$Leaf)
+GExdata$Time.min<-factor(GExdata$Time.min)
+
+# variable calculation
+GExdata$FW <- as.numeric(GExdata$FW) 
+GExdata$DW <- as.numeric(GExdata$DW)
+GExdata$RW <- as.numeric(GExdata$RW)
+
+GExdata$RWC<-(GExdata$FW-GExdata$DW)/(GExdata$RW-GExdata$DW)*100
+
+GExdata$An.area <- as.numeric(GExdata$An.area) 
+GExdata$gsw.area <- as.numeric(GExdata$gsw.area) 
+GExdata$Ci <- as.numeric(GExdata$Ci) 
+GExdata$WUEi <- as.numeric(GExdata$WUEi) 
+GExdata$phiPSII <- as.numeric(GExdata$phiPSII) 
+GExdata$An.mass.LMApv <- as.numeric(GExdata$An.mass.LMApv) 
+
+# subsets
+GExdata.0<-subset(GExdata,Time.min=="0") #combines midday and dehydration time = 0 datasets
+GExdata.midd<-subset(GExdata,Dataset=="Midday") #time = 0 
+GExdata.dehy<-subset(GExdata,Dataset=="Dehydration") #here time varies from 0 to X minutes
+
+# means GEx midday
+m.GExdata.midd<-ddply(GExdata.midd,c("Species","Metabolism"),summarise,
+            m.An.area=mean(An.area,na.rm=TRUE),n.An.area=sum(!is.na(An.area)),se.An.area=sd(An.area,na.rm=T)/sqrt(n.An.area),
+            m.gsw.area=mean(gsw.area,na.rm=TRUE),n.gsw.area=sum(!is.na(gsw.area)),se.gsw.area=sd(gsw.area,na.rm=T)/sqrt(n.gsw.area),
+            m.Ci=mean(Ci,na.rm=TRUE),n.Ci=sum(!is.na(Ci)),se.Ci=sd(Ci,na.rm=T)/sqrt(n.Ci),
+            m.WUEi=mean(WUEi,na.rm=TRUE),n.WUEi=sum(!is.na(WUEi)),se.WUEi=sd(WUEi,na.rm=T)/sqrt(n.WUEi),
+            m.phiPSII=mean(phiPSII,na.rm=TRUE),n.phiPSII=sum(!is.na(phiPSII)),se.phiPSII=sd(phiPSII,na.rm=T)/sqrt(n.phiPSII))
+
+
+```
+##Analysis
+
+```{r}
+## GEx (midday), stat analysis ####
+GExdata.midd$An.area <- as.numeric(GExdata.midd$An.area) 
+GExdata.midd$gsw.area <- as.numeric(GExdata.midd$gsw.area) 
+GExdata.midd$Ci <- as.numeric(GExdata.midd$Ci) 
+GExdata.midd$WUEi <- as.numeric(GExdata.midd$WUEi) 
+GExdata.midd$phiPSII <- as.numeric(GExdata.midd$phiPSII) 
+GExdata.midd$An.mass.LMApv <- as.numeric(GExdata.midd$An.mass.LMApv) 
+
+lm1<-lm(An.area~Species,data=GExdata.midd)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T) #clear assimilation patterns between C3 and C4, with higher A in C4
+tuk1$groups
+
+lm1<-lm(gsw.area~Species,data=GExdata.midd)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(Ci~Species,data=GExdata.midd)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(WUEi~Species,data=GExdata.midd)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+lm1<-lm(phiPSII~Species,data=GExdata.midd)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Species",group=T)
+tuk1$groups
+
+GExdata$Dataset<-factor(GExdata$Dataset,levels=c("Midday","Dehydration"))
+waterpotential <- ggplot(data= GExdata, aes(x=Species, y=F.wp.leaf, fill= Dataset), alpha = 0.9) +
+  geom_boxplot(position=position_dodge(0.8), alpha = 0.9)+
+  geom_jitter(position=position_dodge(0.8), alpha = 0.9)+
+  annotate("point",y=-1.02,x=1,fill="red",size=5,alpha=0.5,shape=21)+
+  annotate("point",y=-1.00,x=2,fill="red",size=5,alpha=0.5,shape=21)+
+  annotate("point",y=-1.00,x=3,fill="red",size=5,alpha=0.5,shape=21)+
+  annotate("point",y=-0.77,x=4,fill="red",size=5,alpha=0.5,shape=21)+
+  annotate("point",y=-0.74,x=5,fill="red",size=5,alpha=0.5,shape=21)+
+  annotate("point",y=-0.84,x=6,fill="red",size=5,alpha=0.5,shape=21)+
+  scale_fill_manual(values=c("#3734eb", "#eb6134"))+
+  scale_color_manual(values=c("#3734eb", "#eb6134"))+
+  ylab(expression(paste(Psi[leaf]," (MPa)")))+
+  theme_minimal()+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.title.y=element_text(size =13),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13,face="italic"),
+        legend.text=element_text(size=12),
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  guides(fill=guide_legend(title="Condition"))
+
+waterpotential
+
+ggsave(filename = "../results/waterpotential_midday_dehydration.jpg", plot = waterpotential, width = 10, height = 6)
+
+#quick graphs
+RWC_Phi_species <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf, colour = Species)) +
+  geom_point()+
+  theme_minimal()+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size = 13),
+        axis.title.y=element_text(size =13),
+        legend.text=element_text(size=12),
+        legend.position="bottom",
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  scale_x_continuous(breaks = seq(0,100, by=10)) + 
+  ylab(expression(paste(Psi[leaf]," (MPa)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  xlim(0,105)
+RWC_Phi_species
+
+ggsave(filename = "../results/RWC_Phi_dehydration_species.jpg", plot = RWC_Phi_species, width = 6, height = 4)
+
+RWC_Phi_species_wrap <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf)) +
+  geom_point(size=3,shape=21,fill="black",alpha=0.5)+
+  facet_wrap(~Species,ncol=3)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13,face="italic"))+
+  scale_x_continuous(breaks = seq(0,100, by=10)) + 
+  ylab(expression(paste(Psi[leaf]," (MPa)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_smooth(aes(x=RWC,y=F.wp.leaf),color="black",fill="grey")+
+  #scale_y_continuous(limits=c(-0.25,0.8),breaks=c(0,0.25,0.5,0.75))+
+  scale_x_continuous(limits=c(0,100))
+  #xlim(0,1)+
+  
+  
+RWC_Phi_species_wrap
+
+RWC_Phi_meta <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf, colour = Metabolism)) +
+  scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
+  geom_point()+
+  theme_minimal()+
+  theme(axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size = 13),
+        axis.title.y=element_text(size =13),
+        legend.text=element_text(size=12),
+        legend.position="bottom",
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  scale_x_continuous(breaks = seq(0,100, by=10)) + 
+  ylab(expression(paste(Psi[leaf]," (MPa)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  guides(color = guide_legend(nrow = 2, ncol=1))+
+  xlim(0,105)
+RWC_Phi_meta
+
+ggsave(filename = "../results/RWC_Phi_dehydration_meta.jpg", plot = RWC_Phi_meta, width = 6, height = 4)
+
+RWC_Phi_dehydration <- ggarrange(RWC_Phi_species, RWC_Phi_meta, ncol = 2, nrow = 1)
+ggsave(filename = "../results/RWC_Phi_dehydration.jpg", plot = RWC_Phi_dehydration, width = 10, height = 4)
+
+#storage effect
+#ca marche pas... excel...
+GExdata_storage<-read_xlsx(path = "../data/C3C4 Grasses - GEx.xlsx", sheet = "Midday (Purged)")#on Marion's PC
+GExdata_storage<-GExdata_storage[-2,] #remove second unit row
+
+storage <- ggplot(data= GExdata_storage, aes(x=...3, y=Ψleaf)) +
+  geom_point()+
+  facet_wrap(~...4)+ #Species
+  theme_minimal()+
+  ylab(expression(paste(Psi[leaf]," (MPa)")))
+
+storage
+
+## GEx (dehydration) #### ?????????????????????????????????
+# quick graph for calculating RWC50
+
+g1<-ggplot()+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=An.area),size=4,shape=21,fill="red")+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=An.area),color="red",alpha=0.5,fill="tomato1")+
+  xlim(0,100)+
+  annotate("text",x=10,y=0,label=expression(paste(italic("Chga"))))
+
+# graphs per species ####
+
+# Avsa
+g1<-ggplot()+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_hline(yintercept=50,color="darkgrey",lty=2)+
+  geom_hline(yintercept=100,color="darkgrey",lty=2)+
+  geom_vline(xintercept=73.02,color="red",lty=2,lwd=1)+
+  geom_vline(xintercept=77.76,color="blue",lty=2,lwd=1)+
+  geom_vline(xintercept=46.12,color="green",lty=2,lwd=1)+
+  geom_vline(xintercept=89.5,color="black",lty=2,lwd=1)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=phiPSII/0.364*100),size=3,shape=21,fill="green",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=phiPSII/0.364*100),color="green",alpha=0.5,fill="palegreen")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=An.area/25.20*100),size=3,shape=21,fill="red",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=An.area/25.20*100),color="red",alpha=0.5,fill="tomato1")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=gsw.area/0.417*100),size=3,shape=21,fill="blue",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=gsw.area/0.417*100),color="blue",alpha=0.5,fill="skyblue2")+
+  ylim(-25,150)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=14),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_blank(),
+        legend.text=element_text(size=13))+
+  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
+g1
+# Hovu
+g1<-ggplot()+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_hline(yintercept=50,color="darkgrey",lty=2)+
+  geom_hline(yintercept=100,color="darkgrey",lty=2)+
+  geom_vline(xintercept=75.78,color="red",lty=2,lwd=1)+
+  geom_vline(xintercept=83.95,color="blue",lty=2,lwd=1)+
+  geom_vline(xintercept=66.30,color="green",lty=2,lwd=1)+
+  geom_vline(xintercept=90.7,color="black",lty=2,lwd=1)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=phiPSII/0.385*100),size=3,shape=21,fill="green",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=phiPSII/0.385*100),color="green",alpha=0.5,fill="palegreen")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=An.area/28.44*100),size=3,shape=21,fill="red",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=An.area/28.44*100),color="red",alpha=0.5,fill="tomato1")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=gsw.area/0.501*100),size=3,shape=21,fill="blue",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=gsw.area/0.501*100),color="blue",alpha=0.5,fill="skyblue2")+
+  ylim(-25,150)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=14),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_blank(),
+        legend.text=element_text(size=13))+
+  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
+# Trae
+g1<-ggplot()+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_hline(yintercept=50,color="darkgrey",lty=2)+
+  geom_hline(yintercept=100,color="darkgrey",lty=2)+
+  geom_vline(xintercept=73.37,color="red",lty=2,lwd=1)+
+  geom_vline(xintercept=81.31,color="blue",lty=2,lwd=1)+
+  geom_vline(xintercept=61.15,color="green",lty=2,lwd=1)+
+  geom_vline(xintercept=90.0,color="black",lty=2,lwd=1)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=phiPSII/0.358*100),size=3,shape=21,fill="green",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=phiPSII/0.358*100),color="green",alpha=0.5,fill="palegreen")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=An.area/32.91*100),size=3,shape=21,fill="red",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=An.area/32.91*100),color="red",alpha=0.5,fill="tomato1")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=gsw.area/0.699*100),size=3,shape=21,fill="blue",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=gsw.area/0.699*100),color="blue",alpha=0.5,fill="skyblue2")+
+  ylim(-25,150)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=14),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_blank(),
+        legend.text=element_text(size=13))+
+  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
+# Pegl
+g1<-ggplot()+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_hline(yintercept=50,color="darkgrey",lty=2)+
+  geom_hline(yintercept=100,color="darkgrey",lty=2)+
+  geom_vline(xintercept=86.94,color="red",lty=2,lwd=1)+
+  geom_vline(xintercept=86.16,color="blue",lty=2,lwd=1)+
+  geom_vline(xintercept=83.79,color="green",lty=2,lwd=1)+
+  geom_vline(xintercept=91.2,color="black",lty=2,lwd=1)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=phiPSII/0.350*100),size=3,shape=21,fill="green",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=phiPSII/0.350*100),color="green",alpha=0.5,fill="palegreen")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=An.area/40.28*100),size=3,shape=21,fill="red",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=An.area/40.28*100),color="red",alpha=0.5,fill="tomato1")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=gsw.area/0.230*100),size=3,shape=21,fill="blue",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=gsw.area/0.230*100),color="blue",alpha=0.5,fill="skyblue2")+
+  ylim(-25,150)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=14),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_blank(),
+        legend.text=element_text(size=13))+
+  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
+# Chga
+g1<-ggplot()+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_hline(yintercept=50,color="darkgrey",lty=2)+
+  geom_hline(yintercept=100,color="darkgrey",lty=2)+
+  geom_vline(xintercept=80.90,color="red",lty=2,lwd=1)+
+  geom_vline(xintercept=82.80,color="blue",lty=2,lwd=1)+
+  geom_vline(xintercept=77.47,color="green",lty=2,lwd=1)+
+  geom_vline(xintercept=93.1,color="black",lty=2,lwd=1)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=phiPSII/0.252*100),size=3,shape=21,fill="green",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=phiPSII/0.252*100),color="green",alpha=0.5,fill="palegreen")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=An.area/26.75*100),size=3,shape=21,fill="red",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=An.area/26.75*100),color="red",alpha=0.5,fill="tomato1")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=gsw.area/0.154*100),size=3,shape=21,fill="blue",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=gsw.area/0.154*100),color="blue",alpha=0.5,fill="skyblue2")+
+  ylim(-25,150)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=14),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_blank(),
+        legend.text=element_text(size=13))+
+  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+  xlab(expression(paste("RWC (%)")))+
+  annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
+
+```
+
+# X50 data
+
+```{r}
+X50data<-read_xlsx("../data/C3C4 Grasses - Xrwc50 data.xlsx",sheet = "C3C4G X50 R" )
+
+    
+X50data$WaterStatus<-factor(X50data$WaterStatus)
+X50data$Species<-factor(X50data$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
+X50data$Metabolism<-factor(X50data$Metabolism)
+
+# subsets
+X50data.RWC<-subset(X50data,WaterStatus=="RWC")
+
+```
+
+##Analysis
+```{r}
+## X50, correlations ####
+d1<-X50data.RWC[c("LMA","LT","LD","LDMC","RWCtlp",
+                "An50","gsw50","phiPSII50","dehyF0.6","dehyF0.35","PLRC10","PLRC25",
+                "PLT10","PLT25","PLTdry","PLA10","PLA25","PLAdry","PLV10","PLV25","PLVdry")]
+
+d1$An50<- as.numeric(d1$An50)
+d1$gsw50<- as.numeric(d1$gsw50)
+d1$phiPSII50 <-as.numeric(d1$phiPSII50)
+
+m1<-cor(d1,use="pairwise.complete.obs")
+
+g1<-corrplot.mixed(m1)
+# most interesting, clear relationships
+# RWC,dehyF0.35 vs RWC,PLV25
+g1<-ggplot(X50data.RWC,aes(x=PLV25,y=dehyF0.35))+
+  geom_abline(intercept=0,slope=1,colour="darkgrey")+
+  geom_smooth(size=1,alpha=0.8,method=lm,se=T,colour="darkgrey",fill="lightgrey")+
+  geom_point(size=3,aes(colour=Metabolism,shape=Species))+
+  scale_shape_manual(values=c(16,15,17,16,15,17))+
+  ylim(-5,55)+
+  xlim(60,85)+
+  #geom_hline(yintercept=0,lty=2)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  ylab(expression(paste("RWC"["dehyF=0.35"]," (%)")))+
+  xlab(expression(paste("RWC"["PLV=25"]," (%)")))
+g1
+# stat
+lm1<-lm(dehyF0.35~PLV25,data=X50data.RWC)
+anova(lm1)
+summary(lm1)
+# RWC,dehyF0.60 vs RWC,PLA25
+g1<-ggplot(X50data.RWC,aes(x=PLA25,y=dehyF0.6))+
+  geom_abline(intercept=0,slope=1,colour="darkgrey")+
+  geom_smooth(size=1,alpha=0.8,method=lm,se=T,colour="darkgrey",fill="lightgrey")+
+  geom_point(size=3,aes(colour=Metabolism,shape=Species))+
+  scale_shape_manual(values=c(16,15,17,16,15,17))+
+  ylim(10,65)+
+  xlim(25,45)+
+  #geom_hline(yintercept=0,lty=2)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  ylab(expression(paste("RWC"["dehyF=0.6"]," (%)")))+
+  xlab(expression(paste("RWC"["PLA=25"]," (%)")))
+g1
+# stat
+lm1<-lm(dehyF0.6~PLA25,data=X50data.RWC)
+anova(lm1)
+summary(lm1)
+# RWC,PLT25 vs LDMC
+g1<-ggplot(X50data.RWC,aes(x=LDMC,y=PLT25))+
+  geom_abline(intercept=0,slope=1,colour="darkgrey")+
+  geom_smooth(size=1,alpha=0.8,method=lm,se=T,colour="darkgrey",fill="lightgrey")+
+  geom_point(size=3,aes(colour=Metabolism,shape=Species))+
+  scale_shape_manual(values=c(16,15,17,16,15,17))+
+  ylim(40,85)+
+  xlim(0.075,0.175)+
+  #geom_hline(yintercept=0,lty=2)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        legend.title=element_blank(),
+        legend.text=element_text(size=12),
+        legend.key.width=unit(2,'cm'))+
+  ylab(expression(paste("RWC"["PLT=25"]," (%)")))+
+  xlab(expression(paste("LDMC (g g"^-1,")")))
+# stat
+lm1<-lm(PLT25~LDMC,data=X50data.RWC)
+anova(lm1)
+summary(lm1)
+
+## X50, PCA ####
+# complete obs
+d1<-X50data.RWC[c("Species","Metabolism",
+                  "dehyF0.6","dehyF0.35","PLRC10","PLRC25",
+                  "PLT10","PLT25","PLTdry","PLA10","PLA25","PLAdry","PLV10","PLV25","PLVdry")]
+pc1<-prcomp(scale(d1[c(3:15)]))
+met<-as.factor(d1$Metabolism[1:6])
+sp<-as.factor(d1$Species[1:6])
+# 
+pca1<-fviz_pca_biplot(pc1,label="var",col.var="black",repel=T,
+                      geom.ind="point",pointsize=5,col.ind=met,invisible="quali")+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.border=element_rect(size=1,colour="#222222"),
+        axis.text.x=element_text(size=10),
+        axis.text.y=element_text(size=10),
+        axis.title.x=element_text(size=14),
+        axis.title.y=element_text(size=14),
+        legend.position="right",
+        legend.title=element_blank(),
+        legend.text=element_text(size=10),
+        legend.background=element_blank(),
+        title=element_blank())+
+  ylab(expression(paste("PC2 (28.7 %)")))+
+  xlab(expression(paste("PC1 (54.1 %)")))
+
+pca1
+```
+
+
