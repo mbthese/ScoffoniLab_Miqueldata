@@ -2408,6 +2408,7 @@ tuk1$groups
 ### GEx, data loading, variable calculation, means ####
 
 GExdata<-read_xlsx(path = "../data/C3C4 Grasses - GEx.xlsx", sheet = "C3C4G GEx R")#on Marion's PC
+GExdata_Zema <- read_excel(path = "../data/AvsPSI_Zema_May2023_Greenhouse_Measurements_4Feb2025updated_MB.xlsx") #Caetano's data
 
 GExdata$Dataset<-factor(GExdata$Dataset)
 GExdata$Metabolism<-factor(GExdata$Metabolism)
@@ -2503,9 +2504,9 @@ waterpotential <- ggplot(data= GExdata, aes(x=Species, y=F.wp.leaf, fill= Datase
         plot.title = element_text(size = 20, hjust = 0.5))+
   guides(fill=guide_legend(title="Condition"))
 
-waterpotential
+#waterpotential
 
-ggsave(filename = "../results/waterpotential_midday_dehydration.jpg", plot = waterpotential, width = 10, height = 6)
+#ggsave(filename = "../results/waterpotential_midday_dehydration.jpg", plot = waterpotential, width = 10, height = 6)
 
 #quick graphs
 RWC_Phi_species <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf, colour = Species)) +
@@ -2521,9 +2522,9 @@ RWC_Phi_species <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf, colour = S
   ylab(expression(paste(Psi[leaf]," (MPa)")))+
   xlab(expression(paste("Relative water content (%)")))+
   xlim(0,105)
-RWC_Phi_species
+#RWC_Phi_species
 
-ggsave(filename = "../results/RWC_Phi_dehydration_species.jpg", plot = RWC_Phi_species, width = 6, height = 4)
+#ggsave(filename = "../results/RWC_Phi_dehydration_species.jpg", plot = RWC_Phi_species, width = 6, height = 4)
 
 RWC_Phi_species_wrap <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf)) +
   geom_point(size=3,shape=21,fill="black",alpha=0.5)+
@@ -2546,7 +2547,7 @@ RWC_Phi_species_wrap <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf)) +
   #xlim(0,1)+
   
   
-RWC_Phi_species_wrap
+#RWC_Phi_species_wrap
 
 RWC_Phi_meta <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf, colour = Metabolism)) +
   scale_colour_manual(values=c("#E1BE6A", "#40B0A6"))+
@@ -2565,10 +2566,10 @@ RWC_Phi_meta <- ggplot(data= GExdata.dehy, aes(x=RWC, y=F.wp.leaf, colour = Meta
   xlim(0,105)
 RWC_Phi_meta
 
-ggsave(filename = "../results/RWC_Phi_dehydration_meta.jpg", plot = RWC_Phi_meta, width = 6, height = 4)
+#ggsave(filename = "../results/RWC_Phi_dehydration_meta.jpg", plot = RWC_Phi_meta, width = 6, height = 4)
 
-RWC_Phi_dehydration <- ggarrange(RWC_Phi_species, RWC_Phi_meta, ncol = 2, nrow = 1)
-ggsave(filename = "../results/RWC_Phi_dehydration.jpg", plot = RWC_Phi_dehydration, width = 10, height = 4)
+#RWC_Phi_dehydration <- ggarrange(RWC_Phi_species, RWC_Phi_meta, ncol = 2, nrow = 1)
+#ggsave(filename = "../results/RWC_Phi_dehydration.jpg", plot = RWC_Phi_dehydration, width = 10, height = 4)
 
 #storage effect
 #ca marche pas... excel...
@@ -2596,7 +2597,7 @@ g1<-ggplot()+
 # graphs per species ####
 
 # Avsa
-g1<-ggplot()+
+Avsa_GEx<-ggplot()+
   geom_hline(yintercept=0,color="darkgrey")+
   geom_vline(xintercept=0,color="darkgrey")+
   geom_hline(yintercept=50,color="darkgrey",lty=2)+
@@ -2618,16 +2619,18 @@ g1<-ggplot()+
         panel.grid.major=element_blank(),
         axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=13),
-        axis.title.x=element_text(size=14),
+        axis.title.x=element_blank(),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
-        legend.title=element_blank(),
-        legend.text=element_text(size=13))+
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("A. sativa")+
   ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
-g1
+  xlab(expression(paste("RWC (%)")))
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
+Avsa_GEx
+
 # Hovu
-g1<-ggplot()+
+Hovu_GEx<-ggplot()+
   geom_hline(yintercept=0,color="darkgrey")+
   geom_vline(xintercept=0,color="darkgrey")+
   geom_hline(yintercept=50,color="darkgrey",lty=2)+
@@ -2647,17 +2650,20 @@ g1<-ggplot()+
   theme_bw()+
   theme(panel.grid.minor=element_blank(),
         panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=14),
+        axis.title.y=element_blank(),
         axis.text.y=element_text(size=13),
-        axis.title.x=element_text(size=14),
+        axis.title.x=element_blank(),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
         legend.title=element_blank(),
-        legend.text=element_text(size=13))+
+         title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("H. vulgare")+
   ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
+  xlab(expression(paste("RWC (%)")))
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
+Hovu_GEx
+
 # Trae
-g1<-ggplot()+
+Trae_GEx<-ggplot()+
   geom_hline(yintercept=0,color="darkgrey")+
   geom_vline(xintercept=0,color="darkgrey")+
   geom_hline(yintercept=50,color="darkgrey",lty=2)+
@@ -2677,17 +2683,20 @@ g1<-ggplot()+
   theme_bw()+
   theme(panel.grid.minor=element_blank(),
         panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=14),
+        axis.title.y=element_blank(),
         axis.text.y=element_text(size=13),
-        axis.title.x=element_text(size=14),
+        axis.title.x=element_blank(),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
         legend.title=element_blank(),
-        legend.text=element_text(size=13))+
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("T. aestivum")+
   ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
+  xlab(expression(paste("RWC (%)")))
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
+Trae_GEx
+
 # Pegl
-g1<-ggplot()+
+Pegl_GEx<-ggplot()+
   geom_hline(yintercept=0,color="darkgrey")+
   geom_vline(xintercept=0,color="darkgrey")+
   geom_hline(yintercept=50,color="darkgrey",lty=2)+
@@ -2712,12 +2721,15 @@ g1<-ggplot()+
         axis.title.x=element_text(size=14),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
         legend.title=element_blank(),
-        legend.text=element_text(size=13))+
+         title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("P. glaucum")+
   ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
+  xlab(expression(paste("RWC (%)")))
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
+Pegl_GEx
+
 # Chga
-g1<-ggplot()+
+Chga_GEx<-ggplot()+
   geom_hline(yintercept=0,color="darkgrey")+
   geom_vline(xintercept=0,color="darkgrey")+
   geom_hline(yintercept=50,color="darkgrey",lty=2)+
@@ -2737,16 +2749,56 @@ g1<-ggplot()+
   theme_bw()+
   theme(panel.grid.minor=element_blank(),
         panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=14),
+        axis.title.y=element_blank(),
         axis.text.y=element_text(size=13),
         axis.title.x=element_text(size=14),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
         legend.title=element_blank(),
-        legend.text=element_text(size=13))+
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("C. gayan")+
   ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))+
-  annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
+  xlab(expression(paste("RWC (%)")))
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
 
+# Zema
+Zema_GEx<-ggplot()+
+  geom_hline(yintercept=0,color="darkgrey")+
+  geom_vline(xintercept=0,color="darkgrey")+
+  geom_hline(yintercept=50,color="darkgrey",lty=2)+
+  geom_hline(yintercept=100,color="darkgrey",lty=2)+
+  geom_vline(xintercept=80.90,color="red",lty=2,lwd=1)+
+  geom_vline(xintercept=82.80,color="blue",lty=2,lwd=1)+
+  geom_vline(xintercept=77.47,color="green",lty=2,lwd=1)+
+  geom_vline(xintercept=93.1,color="black",lty=2,lwd=1)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=phiPSII/0.252*100),size=3,shape=21,fill="green",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=phiPSII/0.252*100),color="green",alpha=0.5,fill="palegreen")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=An.area/26.75*100),size=3,shape=21,fill="red",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=An.area/26.75*100),color="red",alpha=0.5,fill="tomato1")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=gsw.area/0.154*100),size=3,shape=21,fill="blue",alpha=0.5)+
+  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=gsw.area/0.154*100),color="blue",alpha=0.5,fill="skyblue2")+
+  ylim(-25,150)+
+  xlim(0,100)+
+  theme_bw()+
+  theme(panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=14),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_blank(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("Z. mays")+
+  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+  xlab(expression(paste("RWC (%)")))
+
+Zema_GEx
+
+### all plots ----
+GEx_plot <- ggarrange(Avsa_GEx, Hovu_GEx, Trae_GEx, Pegl_GEx, Zema_GEx, Chga_GEx, ncol =3, nrow = 2)
+
+GEx_plot 
+
+ggsave(filename = "../results/GEx_plot .jpg", plot = GEx_plot, width = 12, height = 8)
 ```
 
 # X50 data
