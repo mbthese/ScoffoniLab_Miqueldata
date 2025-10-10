@@ -3,6 +3,8 @@ title: "Script Marion Analyses"
 author: "Marion Boisseaux"
 date: "2025-01-14"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 C3C4 Grasses CALSTATE LA 
@@ -20,6 +22,8 @@ library(readxl)
 library(dplyr)
 library(ggpubr)
 library(cowplot)
+library(tidyr)
+library(readr)
 ```
 
 #Leaf dehydration and recovery assay
@@ -27,9 +31,12 @@ library(cowplot)
 ##data 
 SRC, data loading, variable calculation, outliers, means 
 ```{r}
-SRCdata <- read_xlsx(path = "../data/C3C4 Grasses - OV monitoring, SRC.xlsx", sheet = "C3C4G SRC") 
+SRCdata <- read_xlsx(path = "../../data/C3C4 Grasses - OV monitoring, SRC.xlsx", sheet = "C3C4G SRC") 
 
 ```
+
+
+
 
 ##variable calculations
 ```{r}
@@ -114,6 +121,7 @@ SRCdata$T.SWC<-(SRCdata$TW-SRCdata$DW)/SRCdata$DW
 SRCdata$F.SWC<-(SRCdata$FW-SRCdata$DW)/SRCdata$DW
 SRCdata$R.SWC<-(SRCdata$RW-SRCdata$DW)/SRCdata$DW
 SRCdata$F.RWC<-(SRCdata$FW-SRCdata$DW)/(SRCdata$TW-SRCdata$DW)*100
+SRCdata$R.RWC<-(SRCdata$RW-SRCdata$DW)/(SRCdata$TW-SRCdata$DW)*100 #marion
 
 #??
 SRCdata$F.1_LWi.LWhy<-1-SRCdata$FW/SRCdata$TW #???
@@ -286,6 +294,14 @@ m.SRCdata<-ddply(SRCdata,c("Species","Metabolism"),summarise,
                 m.D.PLLe=mean(D.PLLe,na.rm=TRUE),n.D.PLLe=sum(!is.na(D.PLLe)),se.D.PLLe=sd(D.PLLe,na.rm=T)/sqrt(n.D.PLLe),
                 m.D.PLW1=mean(D.PLW1,na.rm=TRUE),n.D.PLW1=sum(!is.na(D.PLW1)),se.D.PLW1=sd(D.PLW1,na.rm=T)/sqrt(n.D.PLW1))
 ```
+
+## SRC data for analysis
+```{r}
+
+write.csv(m.SRCdata, file = "../data/m.SRCdata.csv")
+write.csv(SRCdata, file = "../data/SRCdata.csv")
+```
+
 
 #Analysis
 
@@ -1318,48 +1334,91 @@ SRCdata$T.FvFm <- as.numeric(SRCdata$T.FvFm)
 SRCdata$R.FvFm <- as.numeric(SRCdata$R.FvFm)
 SRCdata$PLRC
 
+#format for fitting for Megan's script
+PLRC_curve <- SRCdata %>%
+  dplyr::select(Species, `F.RWC`, `PLRC` ) %>%
+  rename(psi = `F.RWC`) %>%
+  rename(gs = `PLRC`) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = PLRC_curve, file = "../results/PLRC_curve.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017" and "R function MB 2017"
+
 # Avsa ----
 
 SRCdata_avsa <- SRCdata %>% filter(Species== "Avsa")
-#find best fit model
-#E(y)=αeβx+θ
-#help from https://rpubs.com/mengxu/exponential-model
-#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+PLRC_linear_avsa <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "linear") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
-theta.0 <- min(SRCdata_avsa$PLRC) * 0.5  
+SRCdata_avsa <- SRCdata %>% filter(Species== "Avsa")
+PLRC_log_avsa <-  read.csv("../results/PLRC/PLRC_Logistic_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Estimate the rest parameters using a linear model
-model.0 <- lm(log(PLRC - theta.0) ~ F.RWC, data=SRCdata_avsa)  
-alpha.0 <- exp(coef(model.0)[1])
-beta.0 <- coef(model.0)[2]
 
-# Starting parameters
-start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
-start
+PLRC_sigmoidal_avsa <-  read.csv("../results/PLRC/PLRC_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-model <- nls(PLRC ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_avsa, start = start)
-summary(model)
+PLRC_exp_avsa <-  read.csv("../results/PLRC/PLRC_Exponential_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-plot(SRCdata_avsa$F.RWC, SRCdata_avsa$PLRC)
-lines(SRCdata_avsa$F.RWC, predict(model, list(x = SRCdata_avsa$F.RWC)), col = 'skyblue', lwd = 3)
+PLRC_exp2_avsa <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "exp2") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-#output model
+choose_model_PLRC_avsa <- rbind(PLRC_linear_avsa, PLRC_log_avsa, PLRC_sigmoidal_avsa, PLRC_exp_avsa, PLRC_exp2_avsa)
+choose_model_PLRC_avsa
+
+PLRC_exp2_avsa <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Avsa")
+
+#output model - exp2 : C+A*exp(-B*psi)
 x_seq.avsa <- seq(min(SRCdata_avsa$F.RWC,na.rm =T ), max(SRCdata_avsa$F.RWC, na.rm = T), length.out = length(SRCdata_avsa$F.RWC))
-y_model.avsa <-  90.687433   * exp(-0.036148   * x_seq.avsa ) -5.710108
+y_model.avsa <-  PLRC_exp2_avsa$C.C + PLRC_exp2_avsa$A.A*exp(-PLRC_exp2_avsa$B.B*x_seq.avsa)
+
+
+
 
 # Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
-avsa_10= (1/-0.036148) * (log(10+5.710108) - log(90.687433))
-avsa_50= (1/-0.036148) * (log(50+5.710108) - log(90.687433))
+#avsa_PLRC10= 7.12248894902544*(log(1+exp((29.9751032615097/-7.12248894902544)-0.1)/0.1))+29.9751032615097
+avsa_PLRC50= PLRC_exp2_avsa$psi_kleaf50
+
 
 Avsa_PLRC<-ggplot(SRCdata_avsa,aes(x=F.RWC,y=PLRC))+
-  geom_point(data=SRCdata_avsa,aes(x=F.RWC,y=PLRC, colour= Metabolism),size=3,alpha=0.5)+
-  scale_colour_manual(values=c("#E1BE6A")) +
+  geom_point(data=SRCdata_avsa,aes(x=F.RWC,y=PLRC, colour= "black"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("black")) +
   geom_line(aes(x = x_seq.avsa, y = y_model.avsa), color = 'black', size=2, alpha=0.7)+
-  geom_vline(xintercept=avsa_10,color="blue",lty=3)+
-  geom_vline(xintercept=avsa_50,color="red",lty=3)+
-  ylim(-0.25,100)+
-  xlim(0,100)+
+  geom_vline(xintercept=avsa_PLRC50,color="black",lty=5, linewidth = 1)+
+ # geom_vline(xintercept=avsa_PLRC50,color="red",lty=3,linewidth = 2)+
+  ylim(0,100)+
+  xlim(100,0)+
   theme_minimal()+
   theme(axis.title.y=element_text(size=13),
         axis.text.y=element_text(size=12),
@@ -1371,48 +1430,83 @@ Avsa_PLRC<-ggplot(SRCdata_avsa,aes(x=F.RWC,y=PLRC))+
   ylab(expression(paste("Percent loss of rehydration capacity (%)")))+
   xlab(expression(paste("Relative water content (%)")))+
   ggtitle("A. sativa")+
-  geom_rect(data=data.frame(xmin=16,xmax=75,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),alpha=0.05,fill="royalblue",inherit.aes=F) #shaded blue area denotes embolism events according to OV method
+  annotate("text", x = 90, y = 95, label = expression(r^2 == 0.90), size = 5, fontface = "bold")+
+    geom_segment(aes(x=86, xend=86, y=20, yend=5), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+  
+
 Avsa_PLRC
 
 
-
-
 # Hovu -----
-SRCdata_hovu <- SRCdata %>% filter(Species== "Hovu")
-# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
-theta.0 <- min(SRCdata_hovu$PLRC, na.rm = T) * 0.5  
 
-# Estimate the rest parameters using a linear model
-model.0 <- lm(log(PLRC - theta.0) ~ F.RWC, data=SRCdata_hovu)  
-alpha.0 <- exp(coef(model.0)[1])
-beta.0 <- coef(model.0)[2]
+SRCdata_Hovu <- SRCdata %>% filter(Species== "Hovu")
+PLRC_linear_Hovu <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "linear") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Starting parameters
-start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
-start
+SRCdata_Hovu <- SRCdata %>% filter(Species== "Hovu")
+PLRC_log_Hovu <-  read.csv("../results/PLRC/PLRC_Logistic_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-model <- nls(PLRC ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_hovu, start = start)
-summary(model)
 
-plot(SRCdata_hovu$F.RWC, SRCdata_hovu$PLRC)
-lines(SRCdata_hovu$F.RWC, predict(model, list(x = SRCdata_hovu$F.RWC)), col = 'skyblue', lwd = 3)
+PLRC_sigmoidal_Hovu <-  read.csv("../results/PLRC/PLRC_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-#output model
-x_seq.hovu <- seq(min(SRCdata_hovu$F.RWC,na.rm =T ), max(SRCdata_hovu$F.RWC, na.rm = T), length.out = length(SRCdata_hovu$F.RWC))
-y_model.hovu <-  102.21313   * exp(-0.03123    * x_seq.hovu ) -6.81649
+PLRC_exp_Hovu <-  read.csv("../results/PLRC/PLRC_Exponential_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+PLRC_exp2_Hovu <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "exp2") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+choose_model_PLRC_Hovu <- rbind(PLRC_linear_Hovu, PLRC_log_Hovu, PLRC_sigmoidal_Hovu, PLRC_exp_Hovu, PLRC_exp2_Hovu)
+choose_model_PLRC_Hovu
+
+PLRC_exp2_Hovu <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Hovu")
+
+#output model - exp2 : C+A*exp(-B*psi)
+x_seq.Hovu <- seq(min(SRCdata_Hovu$F.RWC,na.rm =T ), max(SRCdata_Hovu$F.RWC, na.rm = T), length.out = length(SRCdata_Hovu$F.RWC))
+y_model.Hovu <-  PLRC_exp2_Hovu$C.C + PLRC_exp2_Hovu$A.A*(exp(-PLRC_exp2_Hovu$B.B*x_seq.Hovu))
+
 
 # Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
-hovu_10= (1/-0.03123) * (log(10+6.81649) - log(102.21313))
-hovu_50= (1/-0.03123) * (log(50+6.81649) - log(102.21313))
+Hovu_PLRC50 <- PLRC_exp2_Hovu$psi_kleaf50
 
-hovu_PLRC<-ggplot(SRCdata_hovu,aes(x=F.RWC,y=PLRC))+
-  geom_point(data=SRCdata_hovu,aes(x=F.RWC,y=PLRC, colour= Metabolism),size=3,alpha=0.5)+
-  scale_colour_manual(values=c("#E1BE6A")) +
-  geom_line(aes(x = x_seq.hovu, y = y_model.hovu), color = 'black', size=2, alpha=0.7)+
-  geom_vline(xintercept=hovu_10,color="blue",lty=3)+
-  geom_vline(xintercept=hovu_50,color="red",lty=3)+
-  ylim(-0.25,100)+
-  xlim(0,100)+
+
+Hovu_PLRC<-ggplot(SRCdata_Hovu,aes(x=F.RWC,y=PLRC))+
+  geom_point(data=SRCdata_Hovu,aes(x=F.RWC,y=PLRC, colour= "black"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("black")) +
+  geom_line(aes(x = x_seq.Hovu, y = y_model.Hovu), color = 'black', size=2, alpha=0.7)+
+  geom_vline(xintercept=Hovu_PLRC50,color="black",lty=5, linewidth=1)+
+  #geom_vline(xintercept=Hovu_PLRC50,color="red",lty=3, linewidth = 2)+
+  ylim(0,100)+
+  xlim(100,0)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
         axis.text.y=element_text(size=12),
@@ -1424,56 +1518,88 @@ hovu_PLRC<-ggplot(SRCdata_hovu,aes(x=F.RWC,y=PLRC))+
   ylab(expression(paste("Percent loss of rehydration capacity (%)")))+
   xlab(expression(paste("Relative water content (%)")))+
   ggtitle("H. vulgare")+
-  geom_rect(data=data.frame(xmin=22,xmax=74,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-    alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=23,xmax=60,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-    alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=19,xmax=74,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-    alpha=0.05,fill="royalblue",inherit.aes=F)
-hovu_PLRC
-
+  annotate("text", x = 90, y = 95, label = expression(r^2 == 0.86), size = 5, fontface = "bold")+
+    geom_segment(aes(x=72, xend=72, y=25, yend=10), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+Hovu_PLRC
 
 # Trae -----
-SRCdata_trae <- SRCdata %>% filter(Species== "Trae")
-#find best fit model
-#E(y)=αeβx+θ
-#help from https://rpubs.com/mengxu/exponential-model
-#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
 
-# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
-theta.0 <- min(SRCdata_trae$PLRC) * 0.5  
+SRCdata_Trae <- SRCdata %>% filter(Species== "Trae")
+PLRC_linear_Trae <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "linear") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Estimate the rest parameters using a linear model
-model.0 <- lm(log(PLRC - theta.0) ~ F.RWC, data=SRCdata_trae)  
-alpha.0 <- exp(coef(model.0)[1])
-beta.0 <- coef(model.0)[2]
+SRCdata_Trae <- SRCdata %>% filter(Species== "Trae")
+PLRC_log_Trae <-  read.csv("../results/PLRC/PLRC_Logistic_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Starting parameters
-start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
-start
 
-model <- nls(PLRC ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_trae, start = start)
-summary(model)
+PLRC_sigmoidal_Trae <-  read.csv("../results/PLRC/PLRC_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-plot(SRCdata_trae$F.RWC, SRCdata_trae$PLRC)
-lines(SRCdata_trae$F.RWC, predict(model, list(x = SRCdata_trae$F.RWC)), col = 'skyblue', lwd = 3)
+PLRC_exp_Trae <-  read.csv("../results/PLRC/PLRC_Exponential_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-#output model
-x_seq.trae <- seq(min(SRCdata_trae$F.RWC,na.rm =T ), max(SRCdata_trae$F.RWC, na.rm = T), length.out = length(SRCdata_trae$F.RWC))
-y_model.trae <-  73.578960   * exp(-0.012623   * x_seq.trae ) -21.445047
+PLRC_exp2_Trae <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "exp2") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+PLRC_exp3_Trae <-  read.csv("../results/PLRC/PLRC_Exponential3_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "exp3") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+choose_model_PLRC_Trae <- rbind(PLRC_linear_Trae, PLRC_log_Trae, PLRC_sigmoidal_Trae, PLRC_exp_Trae, PLRC_exp2_Trae)
+choose_model_PLRC_Trae
+
+PLRC_linear_Trae <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Trae") 
+
+#output model - 
+x_seq.Trae <- seq(min(SRCdata_Trae$F.RWC,na.rm =T ), max(SRCdata_Trae$F.RWC, na.rm = T), length.out = length(SRCdata_Trae$F.RWC))
+y_model.Trae <-  PLRC_linear_Trae$B.B* x_seq.Trae +PLRC_linear_Trae$A.A
+
 
 # Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
-trae_10= (1/-0.012623) * (log(10+21.445047) - log(73.578960))
-trae_50= (1/-0.012623) * (log(50+21.445047) - log(73.578960))
+Trae_PLRC50 <- PLRC_linear_Trae$psi_kleaf50
 
-trae_PLRC<-ggplot(SRCdata_trae,aes(x=F.RWC,y=PLRC))+
-  geom_point(data=SRCdata_trae,aes(x=F.RWC,y=PLRC, colour= Metabolism),size=3,alpha=0.5)+
-  scale_colour_manual(values=c("#E1BE6A")) +
-  geom_line(aes(x = x_seq.trae, y = y_model.trae), color = 'black', size=2, alpha=0.7)+
-  geom_vline(xintercept=trae_10,color="blue",lty=3)+
-  geom_vline(xintercept=trae_50,color="red",lty=3)+
-  ylim(-0.25,100)+
-  xlim(0,100)+
+
+Trae_PLRC<-ggplot(SRCdata_Trae,aes(x=F.RWC,y=PLRC))+
+  geom_point(data=SRCdata_Trae,aes(x=F.RWC,y=PLRC, colour= "black"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("black")) +
+  geom_line(aes(x = x_seq.Trae, y = y_model.Trae), color = 'black', size=2, alpha=0.7)+
+  geom_vline(xintercept=Trae_PLRC50,color="black",lty=5, linewidth=1)+
+  #geom_vline(xintercept=Trae_PLRC50,color="red",lty=3, linewidth = 2)+
+  ylim(0,100)+
+  xlim(100,0)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
         axis.text.y=element_text(size=12),
@@ -1485,199 +1611,279 @@ trae_PLRC<-ggplot(SRCdata_trae,aes(x=F.RWC,y=PLRC))+
   ylab(expression(paste("Percent loss of rehydration capacity (%)")))+
   xlab(expression(paste("Relative water content (%)")))+
   ggtitle("T. aestivum")+
-  geom_rect(data=data.frame(xmin=11.5,xmax=61.5,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=23,xmax=70,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=44,xmax=72,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)
-trae_PLRC
-
+  annotate("text", x = 90, y = 95, label = expression(r^2 == 0.77), size = 5, fontface = "bold")+
+   geom_segment(aes(x=68, xend=68, y=30, yend=15), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+  
+Trae_PLRC
 
 
 # Pegl ----
+
 SRCdata_Pegl <- SRCdata %>% filter(Species== "Pegl")
-#find best fit model
-#E(y)=αeβx+θ
-#help from https://rpubs.com/mengxu/exponential-model
-#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+PLRC_linear_Pegl <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Pegl") %>%
+  mutate(`function` = "linear") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
-theta.0 <- min(SRCdata_Pegl$PLRC) * 0.5  
+SRCdata_Pegl <- SRCdata %>% filter(Species== "Pegl")
+PLRC_log_Pegl <-  read.csv("../results/PLRC/PLRC_Logistic_fits.csv") %>%
+  filter(data.type == "Pegl") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Estimate the rest parameters using a linear model
-model.0 <- lm(log(PLRC - theta.0) ~ F.RWC, data=SRCdata_Pegl)  
-alpha.0 <- exp(coef(model.0)[1])
-beta.0 <- coef(model.0)[2]
 
-# Starting parameters
-start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
-start
+PLRC_sigmoidal_Pegl <-  read.csv("../results/PLRC/PLRC_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Pegl") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-model <- nls(PLRC ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_Pegl, start = start)
-summary(model)
+PLRC_exp_Pegl <-  read.csv("../results/PLRC/PLRC_Exponential_fits.csv") %>%
+  filter(data.type == "Pegl") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-plot(SRCdata_Pegl$F.RWC, SRCdata_Pegl$PLRC)
-lines(SRCdata_Pegl$F.RWC, predict(model, list(x = SRCdata_Pegl$F.RWC)), col = 'skyblue', lwd = 3)
+PLRC_exp2_Pegl <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Pegl") %>%
+  mutate(`function` = "exp2") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-#output model
+
+choose_model_PLRC_Pegl <- rbind(PLRC_linear_Pegl, PLRC_log_Pegl, PLRC_sigmoidal_Pegl, PLRC_exp_Pegl, PLRC_exp2_Pegl)
+choose_model_PLRC_Pegl
+
+PLRC_sigmoidal_Pegl <-  read.csv("../results/PLRC/PLRC_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Pegl") 
+
+#output model - sigmoidal : A/(1+exp(-((psi-Xo)/B)))
 x_seq.Pegl <- seq(min(SRCdata_Pegl$F.RWC,na.rm =T ), max(SRCdata_Pegl$F.RWC, na.rm = T), length.out = length(SRCdata_Pegl$F.RWC))
-y_model.Pegl <-  88.052445   * exp(-0.024293   * x_seq.Pegl )-10.882535
+y_model.Pegl <-  PLRC_sigmoidal_Pegl$A.A/(1+exp(-((x_seq.Pegl-PLRC_sigmoidal_Pegl$C.Xo)/PLRC_sigmoidal_Pegl$B.B)))
 
 # Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
-Pegl_10= (1/-0.024293) * (log(10+10.882535) - log(88.052445))
-Pegl_50= (1/-0.024293) * (log(50+10.882535) - log(88.052445))
+Pegl_PLRC50 <- PLRC_sigmoidal_Pegl$psi_kleaf50
+
 
 Pegl_PLRC<-ggplot(SRCdata_Pegl,aes(x=F.RWC,y=PLRC))+
-  geom_point(data=SRCdata_Pegl,aes(x=F.RWC,y=PLRC, colour= Metabolism),size=3,alpha=0.5)+
-  scale_colour_manual(values=c("#40B0A6")) +
+  geom_point(data=SRCdata_Pegl,aes(x=F.RWC,y=PLRC, colour= "black"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("black")) +
   geom_line(aes(x = x_seq.Pegl, y = y_model.Pegl), color = 'black', size=2, alpha=0.7)+
-  geom_vline(xintercept=Pegl_10,color="blue",lty=3)+
-  geom_vline(xintercept=Pegl_50,color="red",lty=3)+
-  ylim(-0.25,100)+
-  xlim(0,100)+
+  geom_vline(xintercept=Pegl_PLRC50,color="black",lty=5, linewidth =1)+
+  #geom_vline(xintercept=Pegl_PLRC50,color="red",lty=3, linewidth = 2)+
+  ylim(0,100)+
+  xlim(100,0)+
   theme_minimal()+
   theme(axis.title.y=element_text(size=13),
-        axis.text.y=element_text(size=12),
-        axis.title.x=element_text(size=13),
-        axis.text.x=element_text(size=12),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size= 13),
+        axis.text.x=element_text(size=13),
         strip.text=element_text(size=13, face="italic"),
         title = element_text(face = "bold.italic"),
         legend.position = "none") +
   ylab(expression(paste("Percent loss of rehydration capacity (%)")))+
   xlab(expression(paste("Relative water content (%)")))+
   ggtitle("P. glaucum")+
-  geom_rect(data=data.frame(xmin=7,xmax=9,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=20,xmax=30,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)
+  annotate("text", x = 90, y = 95, label = expression(r^2 == 0.98), size = 5, fontface = "bold")+
+  geom_segment(aes(x=19, xend=19, y=70, yend=55), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+   
+   
+ 
 Pegl_PLRC
 
 
 # Zema -----
+
 SRCdata_Zema <- SRCdata %>% filter(Species== "Zema")
-#find best fit model
-#E(y)=αeβx+θ
-#help from https://rpubs.com/mengxu/exponential-model
-#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+PLRC_linear_Zema <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Zema") %>%
+  mutate(`function` = "linear") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
-theta.0 <- min(SRCdata_Zema$PLRC) * 0.5  
+SRCdata_Zema <- SRCdata %>% filter(Species== "Zema")
+PLRC_log_Zema <-  read.csv("../results/PLRC/PLRC_Logistic_fits.csv") %>%
+  filter(data.type == "Zema") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Estimate the rest parameters using a linear model
-model.0 <- lm(log(PLRC - theta.0) ~ F.RWC, data=SRCdata_Zema)  
-alpha.0 <- exp(coef(model.0)[1])
-beta.0 <- coef(model.0)[2]
 
-# Starting parameters
-start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
-start
+PLRC_sigmoidal_Zema <-  read.csv("../results/PLRC/PLRC_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Zema") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-model <- nls(PLRC ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_Zema, start = start)
-summary(model)
+PLRC_exp_Zema <-  read.csv("../results/PLRC/PLRC_Exponential_fits.csv") %>%
+  filter(data.type == "Zema") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-plot(SRCdata_Zema$F.RWC, SRCdata_Zema$PLRC)
-lines(SRCdata_Zema$F.RWC, predict(model, list(x = SRCdata_Zema$F.RWC)), col = 'skyblue', lwd = 3)
+PLRC_exp2_Zema <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Zema") %>%
+  mutate(`function` = "exp2") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-#output model
+choose_model_PLRC_Zema <- rbind(PLRC_linear_Zema, PLRC_log_Zema, PLRC_sigmoidal_Zema, PLRC_exp_Zema, PLRC_exp2_Zema)
+choose_model_PLRC_Zema
+
+PLRC_linear_Zema <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Zema")
+
+#output model - linear {B*(psi)+A}
 x_seq.Zema <- seq(min(SRCdata_Zema$F.RWC,na.rm =T ), max(SRCdata_Zema$F.RWC, na.rm = T), length.out = length(SRCdata_Zema$F.RWC))
-y_model.Zema <-  125.602294   * exp(-0.009158   * x_seq.Zema )-53.577050
+y_model.Zema <- PLRC_linear_Zema$B.B * x_seq.Zema  +PLRC_linear_Zema$A.A
 
 # Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
-Zema_10= (1/-0.009158) * (log(10+53.577050) - log(125.602294))
-Zema_50= (1/-0.009158) * (log(50+53.577050) - log(125.602294))
+Zema_PLRC50= PLRC_linear_Zema$psi_kleaf50
 
 Zema_PLRC<-ggplot(SRCdata_Zema,aes(x=F.RWC,y=PLRC))+
-  geom_point(data=SRCdata_Zema,aes(x=F.RWC,y=PLRC, colour= Metabolism),size=3,alpha=0.5)+
-  scale_colour_manual(values=c("#40B0A6")) +
+  geom_point(data=SRCdata_Zema,aes(x=F.RWC,y=PLRC, colour= "black"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("black")) +
   geom_line(aes(x = x_seq.Zema, y = y_model.Zema), color = 'black', size=2, alpha=0.7)+
-  geom_vline(xintercept=Zema_10,color="blue",lty=3)+
-  geom_vline(xintercept=Zema_50,color="red",lty=3)+
-  ylim(-0.25,100)+
-  xlim(0,100)+
+  geom_vline(xintercept=Zema_PLRC50,color="black",lty=5, linewidth=1)+
+  #geom_vline(xintercept=Zema_PLRC50,color="red",lty=3, linewidth= 2)+
+  ylim(0,100)+
+  xlim(100,0)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
-        axis.text.y=element_text(size=12),
+        axis.text.y=element_text(size=13),
         axis.title.x=element_text(size=13),
-        axis.text.x=element_text(size=12),
+        axis.text.x=element_text(size=13),
         strip.text=element_text(size=13, face="italic"),
         title = element_text(face = "bold.italic"),
         legend.position = "none") +
   ylab(expression(paste("Percent loss of rehydration capacity (%)")))+
   xlab(expression(paste("Relative water content (%)")))+
   ggtitle("Z. mays")+
-  geom_rect(data=data.frame(xmin=4,xmax=5,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=11,xmax=35,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)
+  annotate("text", x = 90, y = 95, label = expression(r^2 == 0.89), size = 5, fontface = "bold")+
+  geom_segment(aes(x=19, xend=19, y=70, yend=55), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+  
 Zema_PLRC
 
 # Chga----
 SRCdata_Chga <- SRCdata %>% filter(Species== "Chga")
-#find best fit model
-#E(y)=αeβx+θ
-#help from https://rpubs.com/mengxu/exponential-model
-#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
+PLRC_linear_Chga <-  read.csv("../results/PLRC/PLRC_Linear_fits.csv") %>%
+  filter(data.type == "Chga") %>%
+  mutate(`function` = "linear") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
-theta.0 <- min(SRCdata_Chga$PLRC) * 0.5  
+SRCdata_Chga <- SRCdata %>% filter(Species== "Chga")
+PLRC_log_Chga <-  read.csv("../results/PLRC/PLRC_Logistic_fits.csv") %>%
+  filter(data.type == "Chga") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-# Estimate the rest parameters using a linear model
-model.0 <- lm(log(PLRC - theta.0) ~ F.RWC, data=SRCdata_Chga)  
-alpha.0 <- exp(coef(model.0)[1])
-beta.0 <- coef(model.0)[2]
 
-# Starting parameters
-start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
-start
+PLRC_sigmoidal_Chga <-  read.csv("../results/PLRC/PLRC_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Chga") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-model <- nls(PLRC ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_Chga, start = start)
-summary(model)
+PLRC_exp_Chga <-  read.csv("../results/PLRC/PLRC_Exponential_fits.csv") %>%
+  filter(data.type == "Chga") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-plot(SRCdata_Chga$F.RWC, SRCdata_Chga$PLRC)
-lines(SRCdata_Chga$F.RWC, predict(model, list(x = SRCdata_Chga$F.RWC)), col = 'skyblue', lwd = 3)
+PLRC_exp2_Chga <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Chga") %>%
+  mutate(`function` = "exp2") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
 
-#output model
+choose_model_PLRC_Chga <- rbind(PLRC_linear_Chga, PLRC_log_Chga, PLRC_sigmoidal_Chga, PLRC_exp_Chga, PLRC_exp2_Chga)
+choose_model_PLRC_Chga
+
+
+PLRC_exp2_Chga <-  read.csv("../results/PLRC/PLRC_Exponential2_fits.csv") %>%
+  filter(data.type == "Chga")
+
+#output model - exp2 C+A*exp(-B*psi)
 x_seq.Chga <- seq(min(SRCdata_Chga$F.RWC,na.rm =T ), max(SRCdata_Chga$F.RWC, na.rm = T), length.out = length(SRCdata_Chga$F.RWC))
-y_model.Chga <-  125.602294   * exp(-0.009158   * x_seq.Chga )-53.577050
+y_model.Chga <- PLRC_exp2_Chga$C.C+PLRC_exp2_Chga$A.A*exp(-PLRC_exp2_Chga$B.B*x_seq.Chga)
+
 
 # Calculate the relative water content associated with 10% and 50% losses of rehydration capacity
-Chga_10= (1/-0.009158) * (log(10+53.577050) - log(125.602294))
-Chga_50= (1/-0.009158) * (log(50+53.577050) - log(125.602294))
+Chga_PLRC50= PLRC_exp2_Chga$psi_kleaf50
 
 Chga_PLRC<-ggplot(SRCdata_Chga,aes(x=F.RWC,y=PLRC))+
-  geom_point(data=SRCdata_Chga,aes(x=F.RWC,y=PLRC, colour= Metabolism),size=3,alpha=0.5)+
-  scale_colour_manual(values=c("#40B0A6")) +
+  geom_point(data=SRCdata_Chga,aes(x=F.RWC,y=PLRC, colour= "black"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("black")) +
   geom_line(aes(x = x_seq.Chga, y = y_model.Chga), color = 'black', size=2, alpha=0.7)+
-  geom_vline(xintercept=Chga_10,color="blue",lty=3)+
-  geom_vline(xintercept=Chga_50,color="red",lty=3)+
-  ylim(-0.25,100)+
-  xlim(0,100)+
+  geom_vline(xintercept=Chga_PLRC50,color="black",lty=5, linewidth=1)+
+  #geom_vline(xintercept=Chga_PLRC50,color="red",lty=3)+
+  ylim(0,100)+
+  xlim(100,0)+
   theme_minimal()+
-  theme(axis.title.y=element_blank(),
-        axis.text.y=element_text(size=12),
+  theme(
+        axis.title.y=element_blank(),
+        #axis.text.y=element_text(size=12),
         axis.title.x=element_text(size=13),
-        axis.text.x=element_text(size=12),
+        axis.text.x=element_text(size=13),
         strip.text=element_text(size=13, face="italic"),
         title = element_text(face = "bold.italic"),
         legend.position = "none") +
-  ylab(expression(paste("Percent loss of rehydration capacity (%)")))+
+ # ylab(expression(paste("Percent loss of rehydration capacity (%)")))+
   xlab(expression(paste("Relative water content (%)")))+
   ggtitle("C. gayan")+
-  geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)+
-  geom_rect(data=data.frame(xmin=7,xmax=40,ymin=0,ymax=100),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
-            alpha=0.05,fill="royalblue",inherit.aes=F)
+  annotate("text", x = 90, y = 95, label = expression(r^2 == 0.87), size = 5, fontface = "bold")+
+  geom_segment(aes(x=34, xend=34, y=40, yend=25), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+   
 Chga_PLRC
 
 ### all plots ----
-PLRC_RWC_plot <- ggarrange(Avsa_PLRC, hovu_PLRC, trae_PLRC, Pegl_PLRC, Zema_PLRC, Chga_PLRC, ncol =3, nrow = 2)
+PLRC_RWC_plot <- ggarrange(Avsa_PLRC, Hovu_PLRC, Trae_PLRC, Pegl_PLRC, Zema_PLRC, Chga_PLRC, ncol =3, nrow = 2)
 
 PLRC_RWC_plot 
 
-ggsave(filename = "../results/PLRC_RWC_plot .jpg", plot = PLRC_RWC_plot, width = 12, height = 8)
+ggsave(filename = "../results/PLRC_RWC_plot_fitted.jpg", plot = PLRC_RWC_plot, width = 12, height = 8)
 
 ```
 
@@ -1690,33 +1896,17 @@ SRCdata$F.FvFm <- as.numeric(SRCdata$F.FvFm)
 SRCdata$T.FvFm <- as.numeric(SRCdata$T.FvFm)
 SRCdata$R.FvFm <- as.numeric(SRCdata$R.FvFm)
 
+#fit model with all species at once?
+
 
 
 # Avsa ----
 
 SRCdata_avsa <- SRCdata %>% filter(Species== "Avsa")
 #find best fit model
-#E(y)=αeβx+θ
-#help from https://rpubs.com/mengxu/exponential-model
-#constant thetha = 0 because data as x increases is 0~, thetha is the stabilizing trend over as x increases.
 
-# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
-theta.0 <- min(SRCdata_avsa$PLCF) * 0.5  
 
-# Estimate the rest parameters using a linear model
-model.0 <- lm(log(PLCF - theta.0) ~ F.RWC, data=SRCdata_avsa)  
-alpha.0 <- exp(coef(model.0)[1])
-beta.0 <- coef(model.0)[2]
 
-# Starting parameters
-start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
-start
-
-model <- nls(PLCF ~ alpha * exp(beta * F.RWC) + theta , data = SRCdata_avsa, start = start)
-summary(model)
-
-plot(SRCdata_avsa$F.RWC, SRCdata_avsa$PLCF)
-lines(SRCdata_avsa$F.RWC, predict(model, list(x = SRCdata_avsa$F.RWC)), col = 'skyblue', lwd = 3)
 
 #output model
 x_seq.avsa <- seq(min(SRCdata_avsa$F.RWC,na.rm =T ), max(SRCdata_avsa$F.RWC, na.rm = T), length.out = length(SRCdata_avsa$F.RWC))
@@ -2054,6 +2244,715 @@ ggsave(filename = "../results/PLCF_RWC_plot .jpg", plot = PLCF_RWC_plot, width =
 
 
 ```
+#SRC data convert RWC to water potential
+```{r}
+SRCdata = read.csv("../data/SRCdata.csv",header=TRUE)
+
+SRCdata_PV <- SRCdata %>% select(Species, Metabolism, F.RWC,F.FvFm) %>%
+  mutate(
+    tlp.coef = case_when(
+      Species == "Avsa" ~ -0.84,
+      Species == "Chga" ~ -0.75,
+      Species == "Hovu" ~ -0.83,
+      Species == "Pegl" ~ -0.68,
+      Species == "Trae" ~ -0.85,
+      Species == "Zema" ~ -0.68,
+      TRUE ~ NA_real_
+    ),
+    elasticity = case_when(
+      Species == "Avsa" ~ 8.57,
+      Species == "Chga" ~ 11.6,
+      Species == "Hovu" ~ 9.27,
+      Species == "Pegl" ~ 8.99,
+      Species == "Trae" ~ 9.25,
+      Species == "Zema" ~ 8.07,
+      TRUE ~ NA_real_
+    )) %>% 
+  mutate(Psip =-(tlp.coef)-(elasticity*(1-F.RWC/100))) %>% 
+  mutate(Psip = if_else(Psip < 0, 0, Psip))%>%  # Replace negative Psip with 0
+  mutate(Ps=tlp.coef/(F.RWC/100)) %>% #tlp en neg 
+  mutate(Psileaf.from.RWC= Psip + Ps)
+
+#avsa
+tlp = -0.84 
+elasticity 8.57 
+
+#chga
+tlp = -0.75 
+elasticity 11.6
+
+#hovu
+tlp = -0.83 
+elasticity 9.27
+
+#pegl
+tlp = -0.68 
+elasticity 8.99
+
+#trae
+tlp = -0.85 
+elasticity 9.25
+
+#zema
+tlp = -0.68 
+elasticity 8.07
+```
+
+
+#RWC- FVFM ONLY - dehydration
+
+```{r}
+#SRCdata = read.csv("../data/SRCdata.csv",header=TRUE)
+
+
+# data per species, FvFm ####
+SRCdata_PV$F.RWC <- as.numeric(SRCdata_PV$F.RWC)
+SRCdata_PV$F.FvFm <- as.numeric(SRCdata_PV$F.FvFm)
+SRCdata_PV$Psileaf.from.RWC <- as.numeric(SRCdata_PV$Psileaf.from.RWC)
+
+#max values for relative plotting
+max.FvFm<-ddply(SRCdata_PV,c("Species","Metabolism"),summarise,
+            max.FvFm=max(`F.FvFm`,na.rm=TRUE))
+
+#format for fitting for Megan's script for MPa
+FVFM_dehydration_curve <- SRCdata_PV %>%
+  dplyr::select(Species, Psileaf.from.RWC, `F.FvFm` ) %>%
+  mutate(Psileaf.from.RWC=Psileaf.from.RWC*(-1))%>%
+  rename(psi = Psileaf.from.RWC) %>%
+  rename(gs = `F.FvFm`) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+#format for fitting for Megan's script for RWC
+FVFM_dehydration_curve <- SRCdata_PV %>%
+  dplyr::select(Species, F.RWC , `F.FvFm` ) %>%
+  rename(psi = F.RWC) %>%
+  rename(gs = `F.FvFm`) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = FVFM_dehydration_curve, file = "../results/fvfm/FVFM_dehydration_curve.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+
+
+# Avsa ----
+
+SRCdata_avsa <- SRCdata_PV %>%  dplyr::select(Species, F.RWC, `F.FvFm` ) %>% filter(Species== "Avsa")
+
+FvFm_log_avsa <-  read.csv("../results/fvfm/FvFm_dehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.avsa <- seq(min(SRCdata_avsa$F.RWC,na.rm =T ), max(SRCdata_avsa$F.RWC, na.rm = T), length.out = length(SRCdata_avsa$F.RWC))
+y_model.avsa <-  FvFm_log_avsa$A.A / (1 + ((x_seq.avsa / FvFm_log_avsa$C.Xo)^FvFm_log_avsa$B.B))
+
+# Calculate the relative water content associated with 10% and 50% losses of fvfm?
+
+#plot
+
+Avsa_fvfm<-ggplot(SRCdata_avsa,aes(x=F.RWC,y=F.FvFm))+
+  geom_point(data=SRCdata_avsa,aes(x=F.RWC,y=F.FvFm, colour= "orange"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("orange")) +
+  geom_line(aes(x = x_seq.avsa, y = y_model.avsa), color = 'orange', size=2, alpha=0.7)+
+  #geom_vline(xintercept=avsa_10,color="blue",lty=3)+
+  geom_vline(xintercept=30.36775234
+,color="red",lty=5, linewidth= 2)+
+  #ylim(0,1)+
+  xlim(100,0)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("A. sativa")+
+ # geom_rect(data=data.frame(xmin=16,xmax=75,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),alpha=0.05,fill="royalblue",inherit.aes=F) #shaded blue area denotes embolism events according to OV method
+  geom_segment(aes(x=86, xend=86, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+
+Avsa_fvfm
+
+# Hovu -----
+SRCdata_hovu <- SRCdata %>% filter(Species== "Hovu")
+
+FvFm_loglog_hovu <-  read.csv("../results/fvfm/FvFm_dehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.hovu <- seq(min(SRCdata_hovu$F.RWC,na.rm =T ), max(SRCdata_hovu$F.RWC, na.rm = T), length.out = length(SRCdata_hovu$F.RWC))
+y_model.hovu <-  FvFm_loglog_hovu$A.A / (1 + ((x_seq.hovu / FvFm_loglog_hovu$C.Xo)^FvFm_loglog_hovu$B.B))
+
+hovu_fvfm<-ggplot(SRCdata_hovu,aes(x=F.RWC,y=F.FvFm))+
+  geom_point(data=SRCdata_hovu,aes(x=F.RWC,y=F.FvFm, colour= "orange"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("orange")) +
+  geom_line(aes(x = x_seq.hovu, y = y_model.hovu), color = "orange", size=2, alpha=0.7)+
+ # geom_vline(xintercept=hovu_10,color="blue",lty=3)+
+  geom_vline(xintercept=31.0953990954641,color="red",lty=5, linewidth= 2)+
+  ylim(0,1)+
+  xlim(100,0)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("H. vulgare")+
+  # geom_rect(data=data.frame(xmin=22,xmax=74,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #   alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=23,xmax=60,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #   alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=19,xmax=74,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #   alpha=0.05,fill="royalblue",inherit.aes=F)
+   geom_segment(aes(x=72, xend=72, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+hovu_fvfm
+
+
+# Trae -----
+SRCdata_trae <- SRCdata %>% filter(Species== "Trae")
+
+FvFm_loglog_trae <-  read.csv("../results/fvfm/FvFm_dehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.trae <- seq(min(SRCdata_trae$F.RWC,na.rm =T ), max(SRCdata_trae$F.RWC, na.rm = T), length.out = length(SRCdata_trae$F.RWC))
+y_model.trae <-  FvFm_loglog_trae$A.A / (1 + ((x_seq.trae / FvFm_loglog_trae$C.Xo)^FvFm_loglog_trae$B.B))
+
+trae_fvfm<-ggplot(SRCdata_trae,aes(x=F.RWC,y=F.FvFm))+
+  geom_point(data=SRCdata_trae,aes(x=F.RWC,y=F.FvFm, colour= "orange"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("orange")) +
+  geom_line(aes(x = x_seq.trae, y = y_model.trae), color = "orange", size=2, alpha=0.7)+
+  #geom_vline(xintercept=trae_10,color="blue",lty=3)+
+  geom_vline(xintercept=45.2475564760755,color="red",lty=5, linewidth= 2)+
+  ylim(0,1)+
+  xlim(100,0)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("T. aestivum")+
+  # geom_rect(data=data.frame(xmin=11.5,xmax=61.5,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=23,xmax=70,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=44,xmax=72,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)+
+  geom_segment(aes(x=68, xend=68, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+
+trae_fvfm
+
+
+
+# Pegl ----
+SRCdata_pegl <- SRCdata %>% filter(Species== "Pegl")
+
+FvFm_loglog_pegl <-  read.csv("../results/fvfm/FvFm_dehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Pegl") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.pegl <- seq(min(SRCdata_pegl$F.RWC,na.rm =T ), max(SRCdata_pegl$F.RWC, na.rm = T), length.out = length(SRCdata_pegl$F.RWC))
+y_model.pegl <-  FvFm_loglog_pegl$A.A / (1 + ((x_seq.pegl / FvFm_loglog_pegl$C.Xo)^FvFm_loglog_pegl$B.B))
+
+#plot
+Pegl_fvfm<-ggplot(SRCdata_pegl,aes(x=F.RWC,y=F.FvFm))+
+  geom_point(data=SRCdata_pegl,aes(x=F.RWC,y=F.FvFm, colour= "orange"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("orange")) +
+  geom_line(aes(x = x_seq.pegl, y = y_model.pegl), color = 'orange', size=2, alpha=0.7)+
+  #geom_vline(xintercept=Pegl_10,color="blue",lty=3)+
+  geom_vline(xintercept=10,color="red",lty=5, linewidth= 2)+
+  ylim(0,1)+
+  xlim(100,0)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("P. glaucum")+
+  # geom_rect(data=data.frame(xmin=7,xmax=9,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=20,xmax=30,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)
+  geom_segment(aes(x=19, xend=19, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+   
+  
+Pegl_fvfm
+
+
+# Zema -----
+SRCdata_zema <- SRCdata %>% filter(Species== "Zema")
+
+FvFm_loglog_zema <-  read.csv("../results/fvfm/FvFm_dehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Zema") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.zema <- seq(min(SRCdata_zema$F.RWC,na.rm =T ), max(SRCdata_zema$F.RWC, na.rm = T), length.out = length(SRCdata_zema$F.RWC))
+y_model.zema <-  FvFm_loglog_zema$A.A / (1 + ((x_seq.zema / FvFm_loglog_zema$C.Xo)^FvFm_loglog_zema$B.B))
+
+Zema_fvfm<-ggplot(SRCdata_zema,aes(x=F.RWC,y=F.FvFm))+
+  geom_point(data=SRCdata_zema,aes(x=F.RWC,y=F.FvFm, colour= "orange"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("orange")) +
+  geom_line(aes(x = x_seq.zema, y = y_model.zema), color = 'orange', size=2, alpha=0.7)+
+  #geom_vline(xintercept=Zema_10,color="blue",lty=3)+
+   geom_vline(xintercept=20.8033055479565,color="red",lty=5, linewidth= 2)+
+  ylim(0,1)+
+  xlim(100,0)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("Z. mays")+
+  # geom_rect(data=data.frame(xmin=4,xmax=5,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=11,xmax=35,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)
+    geom_segment(aes(x=19, xend=19, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+Zema_fvfm
+
+# Chga----
+SRCdata_chga <- SRCdata %>% filter(Species== "Chga")
+
+FvFm_loglog_chga <-  read.csv("../results/fvfm/FvFm_dehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Chga") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.chga <- seq(min(SRCdata_chga$F.RWC,na.rm =T ), max(SRCdata_chga$F.RWC, na.rm = T), length.out = length(SRCdata_chga$F.RWC))
+y_model.chga <-  FvFm_loglog_chga$A.A / (1 + ((x_seq.chga / FvFm_loglog_chga$C.Xo)^FvFm_loglog_chga$B.B))
+
+Chga_fvfm<-ggplot(SRCdata_chga,aes(x=F.RWC,y=F.FvFm))+
+  geom_point(data=SRCdata_chga,aes(x=F.RWC,y=F.FvFm, colour= "orange"),size=3,alpha=0.5)+
+  scale_colour_manual(values=c("orange")) +
+  geom_line(aes(x = x_seq.chga, y = y_model.chga), color = 'orange', size=2, alpha=0.7)+
+  #geom_vline(xintercept=Chga_10,color="blue",lty=3)+
+   geom_vline(xintercept=14.0570467626966,color="red",lty=5, linewidth= 2)+
+  ylim(0,1)+
+  xlim(100,0)+
+  theme_minimal()+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("C. gayan")+
+  # geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=9,xmax=10,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)+
+  # geom_rect(data=data.frame(xmin=7,xmax=40,ymin=0,ymax=1),aes(xmin=xmin,xmax=xmax,ymin=ymin,ymax=ymax),
+  #           alpha=0.05,fill="royalblue",inherit.aes=F)
+   geom_segment(aes(x=34, xend=34, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+
+
+Chga_fvfm
+
+### all plots ----
+FVFM_RWC_plot <- ggarrange(Avsa_fvfm, hovu_fvfm, trae_fvfm, Pegl_fvfm, Zema_fvfm, Chga_fvfm, ncol =3, nrow = 2)
+
+FVFM_RWC_plot 
+
+ggsave(filename = "../results/FVFM_RWC_plot_fitted_loglog.jpg", plot = FVFM_RWC_plot, width = 12, height = 8)
+
+
+```
+
+
+
+#RWC- FVFM ONLY - REhydration
+
+```{r}
+# data per species, FvFm #### ----
+SRCdata$F.RWC <- as.numeric(SRCdata$F.RWC)
+SRCdata$R.RWC <- as.numeric(SRCdata$R.RWC)
+SRCdata$F.FvFm <- as.numeric(SRCdata$F.FvFm)
+SRCdata$T.FvFm <- as.numeric(SRCdata$T.FvFm)
+SRCdata$R.FvFm <- as.numeric(SRCdata$R.FvFm)
+
+#format for fitting for Megan's script
+FVFM_rehydration_curve <- SRCdata %>%
+  dplyr::select(Species, `R.RWC`, `R.FvFm` ) %>%
+  rename(psi = `R.RWC`) %>%
+  rename(gs = `R.FvFm`) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = FVFM_rehydration_curve, file = "../results/fvfm/FVFM_rehydration_curve.csv")
+
+#after fitting
+
+FVFM_dehydration_data <- SRCdata %>%
+  dplyr::select(Species, `F.RWC`, `F.FvFm` ) %>%
+  rename(RWC = `F.RWC`) %>%
+  rename(FvFm = `F.FvFm`) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`Condition` = "Dehydration")
+
+FVFM_rehydration_data <- SRCdata %>%
+  dplyr::select(Species, `R.RWC`, `R.FvFm` ) %>%
+  rename(RWC = `R.RWC`) %>%
+  rename(FvFm = `R.FvFm`) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`Condition` = "Rehydration")
+
+combined_fvfm_data <- rbind(FVFM_dehydration_data, FVFM_rehydration_data)
+
+# Avsa ----
+
+fvfm_avsa_rehy <- combined_fvfm_data %>% filter(species== "Avsa") %>% filter(Condition =="Rehydration")
+fvfm_avsa_dehy <- combined_fvfm_data %>% filter(species== "Avsa") %>% filter(Condition =="Dehydration")
+
+FvFm_loglog_avsa_rehy <-  read.csv("../results/fvfm/FvFm_rehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.avsa_rehy <- seq(min(fvfm_avsa_rehy$RWC,na.rm =T ), max(fvfm_avsa_rehy$RWC, na.rm = T), length.out = length(fvfm_avsa_rehy$RWC))
+y_model.avsa_rehy <-  FvFm_loglog_avsa_rehy$A.A / (1 + ((x_seq.avsa_rehy / FvFm_loglog_avsa_rehy$C.Xo)^FvFm_loglog_avsa_rehy$B.B))
+
+
+Avsa_fvfm_de_rehydration <- combined_fvfm_data %>% filter(species== "Avsa") %>%
+  ggplot(aes(x=RWC, y=FvFm, colour=Condition)) +
+  geom_point(size=3, alpha=0.5) +
+  geom_line(data=fvfm_avsa_rehy, aes(x = x_seq.avsa_rehy, y = y_model.avsa_rehy, color="Rehydration"), size=2, alpha=0.7) +
+  geom_line(data=fvfm_avsa_dehy, aes(x = x_seq.avsa, y = y_model.avsa, color="Dehydration"), size=2, alpha=0.7) +
+   geom_vline(xintercept=30.36775234,color="orange",lty=5, linewidth= 1)+
+   geom_vline(xintercept=69.4662619319437,color="blue",lty=5, linewidth= 1)+
+  scale_colour_manual(values=c("Rehydration"="blue", "Dehydration"="orange")) + 
+  xlim(100,0) +
+  theme_minimal() +
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm"))) +
+  xlab(expression(paste("Relative water content (%)"))) +
+  ggtitle("A. sativa") +
+   geom_segment(aes(x=86, xend=86, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+  
+
+Avsa_fvfm_de_rehydration
+
+# Hovu -----
+
+fvfm_hovu_rehy <- combined_fvfm_data %>% filter(species== "Hovu") %>% filter(Condition =="Rehydration")
+fvfm_hovu_dehy <- combined_fvfm_data %>% filter(species== "Hovu") %>% filter(Condition =="Dehydration")
+
+FvFm_loglog_hovu_rehy <-  read.csv("../results/fvfm/FvFm_rehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.hovu_rehy <- seq(min(fvfm_hovu_rehy$RWC,na.rm =T ), max(fvfm_hovu_rehy$RWC, na.rm = T), length.out = length(fvfm_hovu_rehy$RWC))
+y_model.hovu_rehy <-  FvFm_loglog_hovu_rehy$A.A / (1 + ((x_seq.hovu_rehy / FvFm_loglog_hovu_rehy$C.Xo)^FvFm_loglog_hovu_rehy$B.B))
+
+Hovu_fvfm_de_rehydration <- combined_fvfm_data %>% filter(species== "Hovu") %>%
+  ggplot(aes(x=RWC, y=FvFm, colour=Condition)) +
+  geom_point(size=3, alpha=0.5) +
+  geom_line(data=fvfm_hovu_rehy, aes(x = x_seq.hovu_rehy, y = y_model.hovu_rehy, color="Rehydration"), size=2, alpha=0.7) +
+  geom_line(data=fvfm_hovu_dehy, aes(x = x_seq.hovu, y = y_model.hovu, color="Dehydration"), size=2, alpha=0.7) +
+   geom_vline(xintercept=31.0953990954641,color="orange",lty=5, linewidth= 1)+
+  geom_vline(xintercept=73.9694015019488,color="blue",lty=5, linewidth= 1)+
+  scale_colour_manual(values=c("Rehydration"="blue", "Dehydration"="orange")) + 
+  xlim(100,0) +
+  theme_minimal() +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("H. vulgare")+
+   geom_segment(aes(x=72, xend=72, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+
+
+Hovu_fvfm_de_rehydration
+
+# Trae -----
+fvfm_trae_rehy <- combined_fvfm_data %>% filter(species== "Trae") %>% filter(Condition =="Rehydration")
+fvfm_trae_dehy <- combined_fvfm_data %>% filter(species== "Trae") %>% filter(Condition =="Dehydration")
+
+FvFm_loglog_trae_rehy <-  read.csv("../results/fvfm/FvFm_rehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Trae") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.trae_rehy <- seq(min(fvfm_trae_rehy$RWC,na.rm =T ), max(fvfm_trae_rehy$RWC, na.rm = T), length.out = length(fvfm_trae_rehy$RWC))
+y_model.trae_rehy <-  FvFm_loglog_trae_rehy$A.A / (1 + ((x_seq.trae_rehy / FvFm_loglog_trae_rehy$C.Xo)^FvFm_loglog_trae_rehy$B.B))
+
+
+Trae_fvfm_de_rehydration <- combined_fvfm_data %>% filter(species== "Trae") %>%
+  ggplot(aes(x=RWC, y=FvFm, colour=Condition)) +
+  geom_point(size=3, alpha=0.5) +
+  geom_line(data=fvfm_trae_rehy, aes(x = x_seq.trae_rehy, y = y_model.trae_rehy, color="Rehydration"), size=2, alpha=0.7) +
+  geom_line(data=fvfm_trae_dehy, aes(x = x_seq.trae, y = y_model.trae, color="Dehydration"), size=2, alpha=0.7) +
+    geom_vline(xintercept=45.2475564760755,color="orange",lty=5, linewidth= 1)+
+   geom_vline(xintercept=80,color="blue",lty=5, linewidth= 1)+
+  scale_colour_manual(values=c("Rehydration"="blue", "Dehydration"="orange")) + 
+  xlim(100,0) +
+  theme_minimal() +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("T. aestivum")+
+  geom_segment(aes(x=68, xend=68, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+
+  
+Trae_fvfm_de_rehydration
+
+
+
+# Pegl ----
+
+fvfm_pegl_rehy <- combined_fvfm_data %>% filter(species== "Pegl") %>% filter(Condition =="Rehydration")
+fvfm_pegl_dehy <- combined_fvfm_data %>% filter(species== "Pegl") %>% filter(Condition =="Dehydration")
+
+FvFm_loglog_pegl_rehy <-  read.csv("../results/fvfm/FvFm_rehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Pegl") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.pegl_rehy <- seq(min(fvfm_pegl_rehy$RWC,na.rm =T ), max(fvfm_pegl_rehy$RWC, na.rm = T), length.out = length(fvfm_pegl_rehy$RWC))
+y_model.pegl_rehy <-  FvFm_loglog_pegl_rehy$A.A / (1 + ((x_seq.pegl_rehy / FvFm_loglog_pegl_rehy$C.Xo)^FvFm_loglog_pegl_rehy$B.B))
+
+
+pegl_fvfm_de_rehydration <- combined_fvfm_data %>% filter(species== "Pegl") %>%
+  ggplot(aes(x=RWC, y=FvFm, colour=Condition)) +
+  geom_point(size=3, alpha=0.5) +
+  geom_line(data=fvfm_pegl_rehy, aes(x = x_seq.pegl_rehy, y = y_model.pegl_rehy, color="Rehydration"), size=2, alpha=0.7) +
+  geom_line(data=fvfm_pegl_dehy, aes(x = x_seq.pegl, y = y_model.pegl, color="Dehydration"), size=2, alpha=0.7) +
+  scale_colour_manual(values=c("Rehydration"="blue", "Dehydration"="orange")) + 
+  xlim(100,0) +
+  geom_vline(xintercept=10,color="orange",lty=5, linewidth= 1)+
+   geom_vline(xintercept=52.7097380369055,color="blue",lty=5, linewidth= 1)+
+  theme_minimal() +
+  theme(axis.title.y=element_text(size=13),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("P. glaucum")+
+  geom_segment(aes(x=19, xend=19, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+pegl_fvfm_de_rehydration 
+
+
+# Zema -----
+fvfm_zema_rehy <- combined_fvfm_data %>% filter(species== "Zema") %>% filter(Condition =="Rehydration")
+fvfm_zema_dehy <- combined_fvfm_data %>% filter(species== "Zema") %>% filter(Condition =="Dehydration")
+
+FvFm_loglog_zema_rehy <-  read.csv("../results/fvfm/FvFm_rehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Zema") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.zema_rehy <- seq(min(fvfm_zema_rehy$RWC,na.rm =T ), max(fvfm_zema_rehy$RWC, na.rm = T), length.out = length(fvfm_zema_rehy$RWC))
+y_model.zema_rehy <-  FvFm_loglog_zema_rehy$A.A / (1 + ((x_seq.zema_rehy / FvFm_loglog_zema_rehy$C.Xo)^FvFm_loglog_zema_rehy$B.B))
+
+
+zema_fvfm_de_rehydration <- combined_fvfm_data %>% filter(species== "Zema") %>%
+  ggplot(aes(x=RWC, y=FvFm, colour=Condition)) +
+  geom_point(size=3, alpha=0.5) +
+  geom_line(data=fvfm_zema_rehy, aes(x = x_seq.zema_rehy, y = y_model.zema_rehy, color="Rehydration"), size=2, alpha=0.7) +
+  geom_line(data=fvfm_zema_dehy, aes(x = x_seq.zema, y = y_model.zema, color="Dehydration"), size=2, alpha=0.7) +
+    geom_vline(xintercept=20.8033055479565,color="orange",lty=5, linewidth= 1)+
+   geom_vline(xintercept=73.6194054569469,color="blue",lty=5, linewidth= 1)+
+  scale_colour_manual(values=c("Rehydration"="blue", "Dehydration"="orange")) + 
+  xlim(100,0) +
+  theme_minimal() +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("FvFm")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("Z. mays")+
+   geom_segment(aes(x=19, xend=19, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+  
+zema_fvfm_de_rehydration
+
+# Chga----
+fvfm_chga_rehy <- combined_fvfm_data %>% filter(species== "Chga") %>% filter(Condition =="Rehydration")
+fvfm_chga_dehy <- combined_fvfm_data %>% filter(species== "Chga") %>% filter(Condition =="Dehydration")
+
+FvFm_loglog_chga_rehy <-  read.csv("../results/fvfm/FvFm_rehydration_LogLogistic_fits.csv") %>%
+  filter(data.type == "Chga") %>%
+  mutate(`function` = "loglog") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+#output model
+x_seq.chga_rehy <- seq(min(fvfm_chga_rehy$RWC,na.rm =T ), max(fvfm_chga_rehy$RWC, na.rm = T), length.out = length(fvfm_chga_rehy$RWC))
+y_model.chga_rehy <-  FvFm_loglog_chga_rehy$A.A / (1 + ((x_seq.chga_rehy / FvFm_loglog_chga_rehy$C.Xo)^FvFm_loglog_chga_rehy$B.B))
+
+
+chga_fvfm_de_rehydration <- combined_fvfm_data %>% filter(species== "Chga") %>%
+  ggplot(aes(x=RWC, y=FvFm, colour=Condition)) +
+  geom_point(size=3, alpha=0.5) +
+  geom_line(data=fvfm_chga_rehy, aes(x = x_seq.chga_rehy, y = y_model.chga_rehy, color="Rehydration"), size=2, alpha=0.7) +
+  geom_line(data=fvfm_chga_dehy, aes(x = x_seq.chga, y = y_model.chga, color="Dehydration"), size=2, alpha=0.7) +
+   geom_vline(xintercept=14.0570467626966,color="orange",lty=5, linewidth= 1)+
+   geom_vline(xintercept=65.1647469765093,color="blue",lty=5, linewidth= 1)+
+  scale_colour_manual(values=c("Rehydration"="blue", "Dehydration"="orange")) + 
+  xlim(100,0) +
+  theme_minimal() +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_text(size=12),
+        axis.title.x=element_text(size=13),
+        axis.text.x=element_text(size=12),
+        strip.text=element_text(size=13, face="italic"),
+        title = element_text(face = "bold.italic"),
+        legend.position = "none") +
+  ylab(expression(paste("Percent loss of chlorophyll fluoresence (%)")))+
+  xlab(expression(paste("Relative water content (%)")))+
+  ggtitle("C. gayan")+
+ geom_segment(aes(x=34, xend=34, y=0.85, yend=0.75), 
+               arrow=arrow(type="closed", length=unit(0.2, "inches")), 
+               color="black", size=1)
+
+### all plots ----
+FVFM_RWC_plot_de_rehydration <- ggarrange(Avsa_fvfm_de_rehydration, Hovu_fvfm_de_rehydration, Trae_fvfm_de_rehydration, pegl_fvfm_de_rehydration, zema_fvfm_de_rehydration, chga_fvfm_de_rehydration, ncol =3, nrow = 2)
+
+FVFM_RWC_plot_de_rehydration
+
+ggsave(filename = "../results/FVFM_RWC_plot_de_rehydration.jpg", plot = FVFM_RWC_plot_de_rehydration, width = 12, height = 8)
+
+
+```
+
+#FVFM dehydrated / rehydrated linear model
+```{r}
+combined_fvfm_data 
+
+fvfm_data <- as_tibble(combined_fvfm_data) 
+
+fvfm_data$Condition <- as.factor(fvfm_data$Condition)
+
+model.fluo <- nlme::lme(FvFm ~ Condition, random=~1|species, data = fvfm_data, na.action = na.omit) #I expect each species might have a different starting point, but I'm looking for the overall effect of Condition across species.
+model.fluo 
+summary(model.fluo)$tTable #fixed effect
+
+anova(model.fluo)
+VarCorr(model.fluo) #random 
+
+library(broom.mixed)
+tidy(model.fluo, effects = "fixed")
+tidy(model.fluo, effects = "ran_vals")
+```
+
+
 
 #Shrinkage
 ```{r}
@@ -2229,7 +3128,7 @@ ggsave(filename = "../results/shrinkage_RWC_plot .jpg", plot = shrinkage_RWC_plo
 ```{r}
 ### PV, data loading, variable calculation, means ####
 
-PVdata<-read_xlsx(path = "../data/C3C4 Grasses - PV.xlsx", sheet = "C3C4G PV R")
+PVdata<-read_xlsx(path = "../../data/C3C4 Grasses - PV.xlsx", sheet = "C3C4G PV R")
 
 PVdata$Metabolism<-factor(PVdata$Metabolism)
 PVdata$Species<-factor(PVdata$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
@@ -2407,8 +3306,15 @@ tuk1$groups
 ```{r}
 ### GEx, data loading, variable calculation, means ####
 
-GExdata<-read_xlsx(path = "../data/C3C4 Grasses - GEx.xlsx", sheet = "C3C4G GEx R")#on Marion's PC
-GExdata_Zema <- read_excel(path = "../data/AvsPSI_Zema_May2023_Greenhouse_Measurements_4Feb2025updated_MB.xlsx") #Caetano's data
+
+GExdata<-read_xlsx(path = "../data/C3C4 Grasses - GEx_PsifrompVcurves.xlsx", sheet = "C3C4G GEx R")#on Marion's PC
+colnames(GExdata)
+
+
+GExdata1<-read_xlsx(path = "../data/C3C4 Grasses - GEx.xlsx", sheet = "C3C4G GEx R")
+
+
+#data
 
 GExdata$Dataset<-factor(GExdata$Dataset)
 GExdata$Metabolism<-factor(GExdata$Metabolism)
@@ -2422,7 +3328,13 @@ GExdata$FW <- as.numeric(GExdata$FW)
 GExdata$DW <- as.numeric(GExdata$DW)
 GExdata$RW <- as.numeric(GExdata$RW)
 
-GExdata$RWC<-(GExdata$FW-GExdata$DW)/(GExdata$RW-GExdata$DW)*100
+
+GExdata$RWC<-as.numeric(GExdata$RWC)
+
+GExdata$Psip<-as.numeric(GExdata$Psip)
+GExdata$Ps<-as.numeric(GExdata$Ps)
+GExdata$`Psileaf from RWC`<-as.numeric(GExdata$`Psileaf from RWC`)
+
 
 GExdata$An.area <- as.numeric(GExdata$An.area) 
 GExdata$gsw.area <- as.numeric(GExdata$gsw.area) 
@@ -2434,7 +3346,7 @@ GExdata$An.mass.LMApv <- as.numeric(GExdata$An.mass.LMApv)
 # subsets
 GExdata.0<-subset(GExdata,Time.min=="0") #combines midday and dehydration time = 0 datasets
 GExdata.midd<-subset(GExdata,Dataset=="Midday") #time = 0 
-GExdata.dehy<-subset(GExdata,Dataset=="Dehydration") #here time varies from 0 to X minutes
+GExdata.dehy<-subset(GExdata,Dataset== "Dehydration") #here time varies from 0 to X minutes
 
 # means GEx midday
 m.GExdata.midd<-ddply(GExdata.midd,c("Species","Metabolism"),summarise,
@@ -2443,6 +3355,11 @@ m.GExdata.midd<-ddply(GExdata.midd,c("Species","Metabolism"),summarise,
             m.Ci=mean(Ci,na.rm=TRUE),n.Ci=sum(!is.na(Ci)),se.Ci=sd(Ci,na.rm=T)/sqrt(n.Ci),
             m.WUEi=mean(WUEi,na.rm=TRUE),n.WUEi=sum(!is.na(WUEi)),se.WUEi=sd(WUEi,na.rm=T)/sqrt(n.WUEi),
             m.phiPSII=mean(phiPSII,na.rm=TRUE),n.phiPSII=sum(!is.na(phiPSII)),se.phiPSII=sd(phiPSII,na.rm=T)/sqrt(n.phiPSII))
+
+#max values for relative plotting
+max.GExdata.dehy<-ddply(GExdata.dehy,c("Species","Metabolism"),summarise,
+            max.An.area=max(An.area,na.rm=TRUE),
+            max.gsw.area=max(gsw.area,na.rm=TRUE))
 
 
 ```
@@ -2594,211 +3511,1571 @@ g1<-ggplot()+
   xlim(0,100)+
   annotate("text",x=10,y=0,label=expression(paste(italic("Chga"))))
 
-# graphs per species ####
+# graphs per species A ####----
 
-# Avsa
-Avsa_GEx<-ggplot()+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_hline(yintercept=50,color="darkgrey",lty=2)+
-  geom_hline(yintercept=100,color="darkgrey",lty=2)+
-  geom_vline(xintercept=73.02,color="red",lty=2,lwd=1)+
-  geom_vline(xintercept=77.76,color="blue",lty=2,lwd=1)+
-  geom_vline(xintercept=46.12,color="green",lty=2,lwd=1)+
-  geom_vline(xintercept=89.5,color="black",lty=2,lwd=1)+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=phiPSII/0.364*100),size=3,shape=21,fill="green",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=phiPSII/0.364*100),color="green",alpha=0.5,fill="palegreen")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=An.area/25.20*100),size=3,shape=21,fill="red",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=An.area/25.20*100),color="red",alpha=0.5,fill="tomato1")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=gsw.area/0.417*100),size=3,shape=21,fill="blue",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=RWC,y=gsw.area/0.417*100),color="blue",alpha=0.5,fill="skyblue2")+
-  ylim(-25,150)+
-  xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=14),
+A <- rbind(GEx_A_curve_avsa, GEx_A_curve_hovu, GEx_A_curve_trae, GEx_A_curve_pegl, GEx_A_curve_zema, GEx_A_curve_chga)
+
+colnames(A)
+
+write.csv(x = A, file = "../results/A.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+# Avsa -----
+
+#format for fitting for Megan's script
+GEx_A_curve_avsa <- GExdata.dehy %>%
+  filter(Species =="Avsa") %>%
+  mutate(A_relative = An.area/33.12*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, A_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = A_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_A_curve_avsa, file = "../results/GEx_A_curve_avsa.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+
+A_sigmoidal_avsa <-  read.csv("../results/models/GEx-AVSA/GEx_A_curve_avsa_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+A_exp_avsa <-  read.csv("../results/models/GEx-AVSA/GEx_A_curve_avsa_Exponential_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+A_log_avsa <-  read.csv("../results/models/GEx-AVSA/GEx_A_curve_avsa_Logistic_fits.csv") %>%
+  filter(data.type == "Avsa") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+
+choose_model_A_avsa <- rbind(A_log_avsa, A_sigmoidal_avsa, A_exp_avsa)
+choose_model_A_avsa
+
+#best model sigmodoidal
+
+avsa_A_sig <-  read.csv("../results/A/A_Sigmoidal_fits.csv") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+# Create a sequence of x values for the regression line from excel
+x_seq.avsa_A <- seq(min(GExdata.dehy$`Psileaf from RWC`,na.rm = T), max(GExdata.dehy$`Psileaf from RWC`, na.rm = T), length.out = length(GExdata.dehy$`Psileaf from RWC`))
+
+y_model.avsa_A_sigmoidal<- avsa_A_sig$A.A/(1+exp(-((x_seq.avsa_A -avsa_A_sig$C.Xo)/avsa_A_sig$B.B)))
+
+# Calculate the psi associated with 10% and 50% losses of A
+
+
+avsa_A50=  (-avsa_A_sig$B.B*(log(1+exp((avsa_A_sig$C.Xo/avsa_A_sig$B.B)-0.5)/0.5))+avsa_A_sig$C.Xo)*-1
+avsa_A10=  (-avsa_A_sig$B.B*(log(1+exp((avsa_A_sig$C.Xo/avsa_A_sig$B.B)-0.9)/0.9))+avsa_A_sig$C.Xo)*-1
+
+
+Avsa_GEx_A<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=An.area/33.12*100),size=5,color="green")+
+ # geom_line(aes(x = x_seq.avsa_A, y = y_model.avsa_A_sigmoidal), color = 'green', size=5)+
+  geom_vline(xintercept=avsa_A50,color="#006400",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=13),
         axis.title.x=element_blank(),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("A. sativa")+
-  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
   #annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
-Avsa_GEx
+Avsa_GEx_A
 
-# Hovu
-Hovu_GEx<-ggplot()+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_hline(yintercept=50,color="darkgrey",lty=2)+
-  geom_hline(yintercept=100,color="darkgrey",lty=2)+
-  geom_vline(xintercept=75.78,color="red",lty=2,lwd=1)+
-  geom_vline(xintercept=83.95,color="blue",lty=2,lwd=1)+
-  geom_vline(xintercept=66.30,color="green",lty=2,lwd=1)+
-  geom_vline(xintercept=90.7,color="black",lty=2,lwd=1)+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=phiPSII/0.385*100),size=3,shape=21,fill="green",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=phiPSII/0.385*100),color="green",alpha=0.5,fill="palegreen")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=An.area/28.44*100),size=3,shape=21,fill="red",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=An.area/28.44*100),color="red",alpha=0.5,fill="tomato1")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=gsw.area/0.501*100),size=3,shape=21,fill="blue",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=RWC,y=gsw.area/0.501*100),color="blue",alpha=0.5,fill="skyblue2")+
-  ylim(-25,150)+
-  xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_blank(),
+# Hovu -------
+
+A_sigmoidal_hovu <-  read.csv("../results/models/GEx-hovu/GEx_A_curve_hovu_Sigmoidal_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "sigmoidal") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+A_exp_hovu <-  read.csv("../results/models/GEx-hovu/GEx_A_curve_hovu_Exponential_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "exp") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+A_log_hovu <-  read.csv("../results/models/GEx-hovu/GEx_A_curve_hovu_Logistic_fits.csv") %>%
+  filter(data.type == "Hovu") %>%
+  mutate(`function` = "log") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) %>%
+  dplyr::select(`function`, species, rsq, AICcorr)
+
+
+choose_model_A_hovu <- rbind(A_log_hovu, A_sigmoidal_hovu, A_exp_hovu)
+choose_model_A_hovu
+
+#best model logistic
+
+hovu_A_logistic <-  read.csv("../results/models/GEx-hovu/GEx_A_curve_hovu_Logistic_fits.csv") %>%
+  mutate(`function` = "logistic") %>%
+  relocate(`function`, .before = Species) %>%
+  dplyr::select(-X) %>%
+  rename(species= data.type, Data.type = Species) 
+
+# Create a sequence of x values for the regression line from excel
+x_seq.hovu_A_logistic <- seq(min(GExdata.dehy$`Psileaf from RWC`,na.rm = T), max(GExdata.dehy$`Psileaf from RWC`, na.rm = T), length.out = length(GExdata.dehy$`Psileaf from RWC`))
+
+y_model.hovu_A_logistic<- hovu_A_logistic$A.A/(1+((x_seq.hovu_A_logistic/hovu_A_logistic$C.Xo)^hovu_A_logistic$B.B))
+
+
+GEx_A_curve_hovu <- GExdata.dehy %>%
+  filter(Species =="Hovu") %>%
+  mutate(A_relative = An.area/34.97*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, A_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = A_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_A_curve_hovu, file = "../results/GEx_A_curve_hovu.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+Hovu_GEx_A<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=An.area/34.97*100),size=5,color="green")+
+  #geom_line(aes(x = x_seq.hovu_A_logistic, y = y_model.hovu_A_logistic), color = 'green', size=5)+
+   geom_vline(xintercept=-1.06,color="#006400",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=13),
         axis.title.x=element_blank(),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
-        legend.title=element_blank(),
-         title = element_text(size=13, face = "bold.italic"))+
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
    ggtitle("H. vulgare")+
-  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+ylim(0,101)
   #annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
-Hovu_GEx
+Hovu_GEx_A
 
-# Trae
-Trae_GEx<-ggplot()+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_hline(yintercept=50,color="darkgrey",lty=2)+
-  geom_hline(yintercept=100,color="darkgrey",lty=2)+
-  geom_vline(xintercept=73.37,color="red",lty=2,lwd=1)+
-  geom_vline(xintercept=81.31,color="blue",lty=2,lwd=1)+
-  geom_vline(xintercept=61.15,color="green",lty=2,lwd=1)+
-  geom_vline(xintercept=90.0,color="black",lty=2,lwd=1)+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=phiPSII/0.358*100),size=3,shape=21,fill="green",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=phiPSII/0.358*100),color="green",alpha=0.5,fill="palegreen")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=An.area/32.91*100),size=3,shape=21,fill="red",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=An.area/32.91*100),color="red",alpha=0.5,fill="tomato1")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=gsw.area/0.699*100),size=3,shape=21,fill="blue",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=RWC,y=gsw.area/0.699*100),color="blue",alpha=0.5,fill="skyblue2")+
-  ylim(-25,150)+
-  xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_blank(),
+  
+# Trae ---------
+
+
+GEx_A_curve_trae <- GExdata.dehy %>%
+  filter(Species =="Trae") %>%
+  mutate(A_relative = An.area/38.84*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, A_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = A_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_A_curve_trae, file = "../results/GEx_A_curve_trae.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+Trae_GEx_A<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=An.area/38.84*100),size=5,color="green")+
+   geom_vline(xintercept=-0.96239419521822,color="#006400",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=13),
         axis.title.x=element_blank(),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
-        legend.title=element_blank(),
+        legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("T. aestivum")+
-  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+ xlim(0,-1.6)+
+  ylim(0,101)
   #annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
-Trae_GEx
 
-# Pegl
-Pegl_GEx<-ggplot()+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_hline(yintercept=50,color="darkgrey",lty=2)+
-  geom_hline(yintercept=100,color="darkgrey",lty=2)+
-  geom_vline(xintercept=86.94,color="red",lty=2,lwd=1)+
-  geom_vline(xintercept=86.16,color="blue",lty=2,lwd=1)+
-  geom_vline(xintercept=83.79,color="green",lty=2,lwd=1)+
-  geom_vline(xintercept=91.2,color="black",lty=2,lwd=1)+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=phiPSII/0.350*100),size=3,shape=21,fill="green",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=phiPSII/0.350*100),color="green",alpha=0.5,fill="palegreen")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=An.area/40.28*100),size=3,shape=21,fill="red",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=An.area/40.28*100),color="red",alpha=0.5,fill="tomato1")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=gsw.area/0.230*100),size=3,shape=21,fill="blue",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=RWC,y=gsw.area/0.230*100),color="blue",alpha=0.5,fill="skyblue2")+
-  ylim(-25,150)+
-  xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_text(size=14),
+Trae_GEx_A
+  
+# Pegl ----------
+
+GEx_A_curve_pegl <- GExdata.dehy %>%
+  filter(Species =="Pegl") %>%
+  mutate(A_relative = An.area/43.22*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, A_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = A_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_A_curve_pegl, file = "../results/GEx_A_curve_pegl.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+Pegl_GEx_A<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=An.area/43.22*100),size=5,color="green")+
+   geom_vline(xintercept=-0.787984381381875,color="#006400",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=13),
-        axis.title.x=element_text(size=14),
+         axis.title.x=element_text(size=20),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
-        legend.title=element_blank(),
-         title = element_text(size=13, face = "bold.italic"))+
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
    ggtitle("P. glaucum")+
-  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
   #annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
-Pegl_GEx
+Pegl_GEx_A
 
-# Chga
-Chga_GEx<-ggplot()+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_hline(yintercept=50,color="darkgrey",lty=2)+
-  geom_hline(yintercept=100,color="darkgrey",lty=2)+
-  geom_vline(xintercept=80.90,color="red",lty=2,lwd=1)+
-  geom_vline(xintercept=82.80,color="blue",lty=2,lwd=1)+
-  geom_vline(xintercept=77.47,color="green",lty=2,lwd=1)+
-  geom_vline(xintercept=93.1,color="black",lty=2,lwd=1)+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=phiPSII/0.252*100),size=3,shape=21,fill="green",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=phiPSII/0.252*100),color="green",alpha=0.5,fill="palegreen")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=An.area/26.75*100),size=3,shape=21,fill="red",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=An.area/26.75*100),color="red",alpha=0.5,fill="tomato1")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=gsw.area/0.154*100),size=3,shape=21,fill="blue",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=RWC,y=gsw.area/0.154*100),color="blue",alpha=0.5,fill="skyblue2")+
-  ylim(-25,150)+
-  xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_blank(),
+ 
+# Chga -----------
+
+GEx_A_curve_chga <- GExdata.dehy %>%
+  filter(Species =="Chga") %>%
+  mutate(A_relative = An.area/33.28*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, A_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = A_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_A_curve_chga, file = "../results/GEx_A_curve_chga.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+Chga_GEx_A<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=An.area/33.28*100),size=5,color="green")+
+   geom_vline(xintercept=-0.928486823093904,color="#006400",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=13),
-        axis.title.x=element_text(size=14),
+         axis.title.x=element_text(size=20),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
-        legend.title=element_blank(),
+        legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("C. gayan")+
-  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
   #annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
+Chga_GEx_A
 
-# Zema
-Zema_GEx<-ggplot()+
-  geom_hline(yintercept=0,color="darkgrey")+
-  geom_vline(xintercept=0,color="darkgrey")+
-  geom_hline(yintercept=50,color="darkgrey",lty=2)+
-  geom_hline(yintercept=100,color="darkgrey",lty=2)+
-  geom_vline(xintercept=80.90,color="red",lty=2,lwd=1)+
-  geom_vline(xintercept=82.80,color="blue",lty=2,lwd=1)+
-  geom_vline(xintercept=77.47,color="green",lty=2,lwd=1)+
-  geom_vline(xintercept=93.1,color="black",lty=2,lwd=1)+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=phiPSII/0.252*100),size=3,shape=21,fill="green",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=phiPSII/0.252*100),color="green",alpha=0.5,fill="palegreen")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=An.area/26.75*100),size=3,shape=21,fill="red",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=An.area/26.75*100),color="red",alpha=0.5,fill="tomato1")+
-  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=gsw.area/0.154*100),size=3,shape=21,fill="blue",alpha=0.5)+
-  geom_smooth(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=RWC,y=gsw.area/0.154*100),color="blue",alpha=0.5,fill="skyblue2")+
-  ylim(-25,150)+
-  xlim(0,100)+
-  theme_bw()+
-  theme(panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank(),
-        axis.title.y=element_blank(),
+# Zema ----------
+
+
+GEx_A_curve_zema <- GExdata.dehy %>%
+  filter(Species =="Zema") %>%
+  mutate(A_relative = An.area/33.53*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, A_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = A_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_A_curve_zema, file = "../results/GEx_A_curve_zema.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+Zema_GEx_A<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=An.area/33.53*100),size=5,color="green")+
+   geom_vline(xintercept=-0.77,color="#006400",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=13),
-        axis.title.x=element_text(size=14),
+        axis.title.x=element_text(size=20),
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
-        legend.title=element_blank(),
+        legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("Z. mays")+
-  ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
-  xlab(expression(paste("RWC (%)")))
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Zema"))))
+Zema_GEx_A
 
-Zema_GEx
+### graph per species gs----
 
-### all plots ----
-GEx_plot <- ggarrange(Avsa_GEx, Hovu_GEx, Trae_GEx, Pegl_GEx, Zema_GEx, Chga_GEx, ncol =3, nrow = 2)
+GEx_g_curve_avsa <- read_csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/GEx_g_curve_avsa.csv")
+GEx_g_curve_trae <- read_csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/GEx_g_curve_trae.csv")
+GEx_g_curve_hovu <- read_csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/GEx_g_curve_hovu.csv")
+GEx_g_curve_pegl <- read_csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/GEx_g_curve_pegl.csv")
+GEx_g_curve_chga <- read_csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/GEx_g_curve_chga.csv")
+GEx_g_curve_zema <- read_csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/GEx_g_curve_zema.csv")
+
+gs <- rbind(GEx_g_curve_avsa, GEx_g_curve_hovu, GEx_g_curve_trae, GEx_g_curve_pegl, GEx_g_curve_zema, GEx_g_curve_chga)
+
+colnames(gs)
+
+write.csv(x = gs, file = "../results/gs.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+# Avsa ------
+
+GEx_g_curve_avsa <- GExdata.dehy %>%
+  filter(Species =="Avsa") %>%
+  mutate(g_relative = gsw.area/0.55*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, g_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = g_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_g_curve_avsa, file = "../results/GEx_g_curve_avsa.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+Avsa_GEx_g<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=gsw.area/0.55*100),size=5,color="blue")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=An.area/33.12*100),size=5,color="green", alpha=0.5)+
+   geom_vline(xintercept=avsa_A50,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-1.04,color="blue",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("A. sativa")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
+Avsa_GEx_g
+
+# Hovu ---------
+
+GEx_g_curve_hovu <- GExdata.dehy %>%
+  filter(Species =="Hovu") %>%
+  mutate(g_relative = gsw.area/0.7242980*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, g_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = g_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_g_curve_hovu, file = "../results/GEx_g_curve_hovu.csv")
+
+Hovu_GEx_g<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=gsw.area/0.72*100),size=5,color="blue")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=An.area/34.97*100),size=5,color="green",alpha=0.5)+
+  geom_vline(xintercept=-1.06,color="#006400",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-1.02,color="blue",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("H. vulgare")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
+Hovu_GEx_g
+
+  
+# Trae -----------
+
+GEx_g_curve_trae <- GExdata.dehy %>%
+  filter(Species =="Trae") %>%
+  mutate(g_relative = gsw.area/0.9506690*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, g_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = g_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_g_curve_trae, file = "../results/GEx_g_curve_trae.csv")
+
+Trae_GEx_g<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=gsw.area/0.95*100),size=5, color="blue")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=An.area/38.84*100),size=5,color="green",alpha=0.5)+
+   geom_vline(xintercept=-0.96239419521822,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.88,color="blue",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("T. aestivum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
+
+Trae_GEx_g
+  
+# Pegl ----------
+
+GEx_g_curve_pegl <- GExdata.dehy %>%
+  filter(Species =="Pegl") %>%
+  mutate(g_relative = gsw.area/0.2450450*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, g_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = g_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_g_curve_pegl, file = "../results/GEx_g_curve_pegl.csv")
+
+Pegl_GEx_g<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=gsw.area/0.245*100),size=5, color="blue")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=An.area/43.22*100),size=5,color="green",alpha=0.5)+
+   geom_vline(xintercept=-0.787984381381875,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.7853,color="blue",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+         axis.title.x=element_text(size=20),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("P. glaucum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
+Pegl_GEx_g
+
+ 
+# Chga -------------
+
+GEx_g_curve_chga <- GExdata.dehy %>%
+  filter(Species =="Chga") %>%
+  mutate(g_relative = gsw.area/0.2450450*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, g_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = g_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_g_curve_chga, file = "../results/GEx_g_curve_chga.csv")
+
+Chga_GEx_g<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=gsw.area/0.183*100),size=5, color="blue")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=An.area/33.28*100),size=5,color="green",alpha=0.5)+
+   geom_vline(xintercept=-0.928486823093904,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.92,color="blue",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+         axis.title.x=element_text(size=20),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("C. gayan")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+ xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
+Chga_GEx_g
+
+# Zema ----------
+GEx_g_curve_zema <- GExdata.dehy %>%
+  filter(Species =="Zema") %>%
+  mutate(g_relative = gsw.area/0.2450450*100) %>%
+  mutate(psi_neg =  `Psileaf from RWC`*(-1)) %>%
+  dplyr::select(Species, psi_neg, g_relative ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = g_relative) %>% #for the script by Megan
+  rename(species = Species) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = GEx_g_curve_zema, file = "../results/GEx_g_curve_zema.csv")
+
+Zema_GEx_g<-ggplot()+
+   geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=gsw.area/0.204*100),size=5, color="blue")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=An.area/33.53*100),size=5,color="green",alpha=0.5)+
+   geom_vline(xintercept=-0.77,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.78,color="blue",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=20),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("Z. mays")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Zema"))))
+Zema_GEx_g
+
+
+
+
+##adding Kleaf --------
+
+
+#data
+
+Kleaf <- rbind(Kleaf_avsa, Kleaf_hovu, Kleaf_trae, Kleaf_pegl, Kleaf_zema, Kleaf_chga)
+
+colnames(Kleaf)
+
+Kleaf_curve <- Kleaf %>%
+  mutate(psi_neg =  `Lowest Psileaf`*(-1)) %>%
+  dplyr::select(Species, psi_neg, `Kleaf Tcorr` ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = `Kleaf Tcorr`) %>% #for the script by Megan
+  rename(species = Species) %>%
+ # mutate(psi =  psi*(-1)) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = Kleaf_curve, file = "../results/Kleaf_curve.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+# Avsa ------
+Kleaf_avsa<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "AVSA")
+
+Kleaf_avsa$`Lowest Psileaf` <- as.numeric(Kleaf_avsa$`Lowest Psileaf`)*-1
+Kleaf_avsa$`Kleaf Tcorr` <- as.numeric(Kleaf_avsa$`Kleaf Tcorr`)
+
+max.Kleaf_avsa =max(Kleaf_avsa$`Kleaf Tcorr`,na.rm=TRUE)
+
+Kleaf_avsa$Kleaf_relative <- Kleaf_avsa$`Kleaf Tcorr`/max(Kleaf_avsa$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+
+Avsa_GEx_g_kleaf<-ggplot()+
+  geom_point(data=Kleaf_avsa,aes(x=`Lowest Psileaf`,y=Kleaf_relative),size=5,color="red")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=gsw.area/0.55*100),size=5,color="blue", alpha=0.5)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=An.area/33.12*100),size=5,color="green", alpha=0.5)+
+  geom_vline(xintercept=avsa_A50,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-1.04,color="blue",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-0.27,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("A. sativa")+
+   ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
+Avsa_GEx_g_kleaf
+
+# Hovu ---------
+Kleaf_hovu<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "HOVU") %>% dplyr::select(-`...27`)
+
+Kleaf_hovu$`Lowest Psileaf` <- as.numeric(Kleaf_hovu$`Lowest Psileaf`)*-1
+Kleaf_hovu$`Kleaf Tcorr` <- as.numeric(Kleaf_hovu$`Kleaf Tcorr`)
+
+max.Kleaf_hovu =max(Kleaf_hovu$`Kleaf Tcorr`,na.rm=TRUE)
+
+Hovu_GEx_g_kleaf<-ggplot()+
+  geom_point(data=Kleaf_hovu,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_hovu*100),size=5,color="red")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=gsw.area/0.72*100),size=5,color="blue", alpha =0.5)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=An.area/34.97*100),size=5,color="green",alpha=0.5)+
+  geom_vline(xintercept=-1.06,color="#006400",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-1.02,color="blue",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-0.26,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("H. vulgare")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
+Hovu_GEx_g_kleaf
+
+  
+# Trae -----------
+
+Kleaf_trae<-read_excel("../data/Kleaf_september13_2022.xlsx", sheet = "TRAE")
+
+Kleaf_trae$`Lowest Psileaf` <- as.numeric(Kleaf_trae$`Lowest Psileaf`)*-1
+Kleaf_trae$`Kleaf Tcorr` <- as.numeric(Kleaf_trae$`Kleaf Tcorr`)
+
+max.Kleaf_trae =max(Kleaf_trae$`Kleaf Tcorr`,na.rm=TRUE)
+
+Trae_GEx_g_kleaf<-ggplot()+
+  geom_point(data=Kleaf_trae,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_trae*100),size=5,color="red")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=gsw.area/0.95*100),size=5, color="blue", alpha=0.5)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=An.area/38.84*100),size=5,color="green",alpha=0.5)+
+  geom_vline(xintercept=-0.96239419521822,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.88,color="blue",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.56,color="red",lty=5, linewidth = 2)+ #only one form exponential fit all others logistic
+    theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("T. aestivum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
+
+Trae_GEx_g_kleaf
+  
+# Pegl ----------
+Kleaf_pegl<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "PEGL")
+
+Kleaf_pegl$`Lowest Psileaf` <- as.numeric(Kleaf_pegl$`Lowest Psileaf`)*-1
+Kleaf_pegl$`Kleaf Tcorr` <- as.numeric(Kleaf_pegl$`Kleaf Tcorr`)
+
+max.Kleaf_pegl =max(Kleaf_pegl$`Kleaf Tcorr`,na.rm=TRUE)
+
+Pegl_GEx_g_kleaf<-ggplot()+
+  geom_point(data=Kleaf_pegl,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_pegl*100),size=5,color="red")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=gsw.area/0.245*100),size=5, color="blue",alpha=0.5)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=An.area/43.22*100),size=5,color="green",alpha=0.5)+
+   geom_vline(xintercept=-0.787984381381875,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.7853,color="blue",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+    theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+         axis.title.x=element_text(size=20),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("P. glaucum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
+Pegl_GEx_g_kleaf
+
+ 
+# Chga -------------
+Kleaf_chga<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "CHGA")
+
+Kleaf_chga$`Lowest Psileaf` <- as.numeric(Kleaf_chga$`Lowest Psileaf`)*-1
+Kleaf_chga$`Kleaf Tcorr` <- as.numeric(Kleaf_chga$`Kleaf Tcorr`)
+
+max.Kleaf_chga =max(Kleaf_chga$`Kleaf Tcorr`,na.rm=TRUE)
+
+Chga_GEx_g_kleaf<- ggplot()+
+  geom_point(data=Kleaf_chga,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_chga*100),size=5,color="red")+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=gsw.area/0.183*100),size=5, color="blue",alpha=0.5)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=An.area/33.28*100),size=5,color="green",alpha=0.5)+
+  geom_vline(xintercept=-0.928486823093904,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.92,color="blue",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-0.44,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+         axis.title.x=element_text(size=20),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("C. gayan")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+ xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
+Chga_GEx_g_kleaf
+
+# Zema ----------
+
+Kleaf_zema<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "ZEMA")
+
+Kleaf_zema$`Lowest Psileaf` <- as.numeric(Kleaf_zema$`Lowest Psileaf`)*-1
+Kleaf_zema$`Kleaf Tcorr` <- as.numeric(Kleaf_zema$`Kleaf Tcorr`)
+
+max.Kleaf_zema =max(Kleaf_zema$`Kleaf Tcorr`,na.rm=TRUE)
+
+Zema_GEx_g_kleaf<- ggplot()+
+  geom_point(data=Kleaf_zema,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_zema*100),size=5,color="red")+
+   geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=gsw.area/0.204*100),size=5, color="blue",alpha=0.5)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=An.area/33.53*100),size=5,color="green",alpha=0.5)+
+   geom_vline(xintercept=-0.77,color="#006400",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.78,color="blue",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  theme(axis.title.y=element_text(size=14),
+        axis.text.y=element_text(size=13),
+        axis.title.x=element_text(size=20),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("Z. mays")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Zema"))))
+Zema_GEx_g_kleaf
+
+### all A plots ----
+GEx_plot_A <- ggarrange(Avsa_GEx_A, Hovu_GEx_A, Trae_GEx_A, Pegl_GEx_A, Zema_GEx_A, Chga_GEx_A, ncol =3, nrow = 2)
+
+GEx_plot_A 
+
+ggsave(filename = "../results/GEx_plotA.jpg", plot = GEx_plot_A, width = 12, height = 8)
+
+###all g plots----
+GEx_plot_g <- ggarrange(Avsa_GEx_g, Hovu_GEx_g, Trae_GEx_g, Pegl_GEx_g, Zema_GEx_g, Chga_GEx_g, ncol =3, nrow = 2)
+
+GEx_plot_g 
+
+ggsave(filename = "../results/GEx_plotA_g.jpg", plot = GEx_plot_g, width = 12, height = 8)
+
+### all plots Kleaf ----
+GEx_plot <- ggarrange(Avsa_GEx_g_kleaf, Hovu_GEx_g_kleaf, Trae_GEx_g_kleaf, Pegl_GEx_g_kleaf, Zema_GEx_g_kleaf, Chga_GEx_g_kleaf, ncol =3, nrow = 2)
 
 GEx_plot 
 
-ggsave(filename = "../results/GEx_plot .jpg", plot = GEx_plot, width = 12, height = 8)
+ggsave(filename = "../results/GEx_plot_A_g_K.jpg", plot = GEx_plot, width = 12, height = 8)
+
+```
+
+
+#inv # Gas Exchange data
+```{r}
+### GEx, data loading, variable calculation, means ####
+
+
+GExdata<-read_xlsx(path = "../data/C3C4 Grasses - GEx_PsifrompVcurves.xlsx", sheet = "C3C4G GEx R")#on Marion's PC
+colnames(GExdata)
+
+
+GExdata1<-read_xlsx(path = "../data/C3C4 Grasses - GEx.xlsx", sheet = "C3C4G GEx R")
+
+
+#data
+
+GExdata$Dataset<-factor(GExdata$Dataset)
+GExdata$Metabolism<-factor(GExdata$Metabolism)
+GExdata$Species<-factor(GExdata$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
+GExdata$Individual<-factor(GExdata$Individual)
+GExdata$Leaf<-factor(GExdata$Leaf)
+GExdata$Time.min<-factor(GExdata$Time.min)
+
+# variable calculation
+GExdata$FW <- as.numeric(GExdata$FW) 
+GExdata$DW <- as.numeric(GExdata$DW)
+GExdata$RW <- as.numeric(GExdata$RW)
+
+
+GExdata$RWC<-as.numeric(GExdata$RWC)
+
+GExdata$Psip<-as.numeric(GExdata$Psip)
+GExdata$Ps<-as.numeric(GExdata$Ps)
+GExdata$`Psileaf from RWC`<-as.numeric(GExdata$`Psileaf from RWC`)
+
+
+GExdata$An.area <- as.numeric(GExdata$An.area) 
+GExdata$gsw.area <- as.numeric(GExdata$gsw.area) 
+GExdata$Ci <- as.numeric(GExdata$Ci) 
+GExdata$WUEi <- as.numeric(GExdata$WUEi) 
+GExdata$phiPSII <- as.numeric(GExdata$phiPSII) 
+GExdata$An.mass.LMApv <- as.numeric(GExdata$An.mass.LMApv) 
+
+# subsets
+GExdata.0<-subset(GExdata,Time.min=="0") #combines midday and dehydration time = 0 datasets
+GExdata.midd<-subset(GExdata,Dataset=="Midday") #time = 0 
+GExdata.dehy<-subset(GExdata,Dataset== "Dehydration") #here time varies from 0 to X minutes
+
+# means GEx midday
+m.GExdata.midd<-ddply(GExdata.midd,c("Species","Metabolism"),summarise,
+            m.An.area=mean(An.area,na.rm=TRUE),n.An.area=sum(!is.na(An.area)),se.An.area=sd(An.area,na.rm=T)/sqrt(n.An.area),
+            m.gsw.area=mean(gsw.area,na.rm=TRUE),n.gsw.area=sum(!is.na(gsw.area)),se.gsw.area=sd(gsw.area,na.rm=T)/sqrt(n.gsw.area),
+            m.Ci=mean(Ci,na.rm=TRUE),n.Ci=sum(!is.na(Ci)),se.Ci=sd(Ci,na.rm=T)/sqrt(n.Ci),
+            m.WUEi=mean(WUEi,na.rm=TRUE),n.WUEi=sum(!is.na(WUEi)),se.WUEi=sd(WUEi,na.rm=T)/sqrt(n.WUEi),
+            m.phiPSII=mean(phiPSII,na.rm=TRUE),n.phiPSII=sum(!is.na(phiPSII)),se.phiPSII=sd(phiPSII,na.rm=T)/sqrt(n.phiPSII))
+
+#max values for relative plotting
+max.GExdata.dehy<-ddply(GExdata.dehy,c("Species","Metabolism"),summarise,
+            max.An.area=max(An.area,na.rm=TRUE),
+            max.gsw.area=max(gsw.area,na.rm=TRUE))
+
+
+```
+##Analysis
+
+```{r}
+# graphs per species Kleaf ####----
+
+A <- rbind(GEx_A_curve_avsa, GEx_A_curve_hovu, GEx_A_curve_trae, GEx_A_curve_pegl, GEx_A_curve_zema, GEx_A_curve_chga)
+
+colnames(A)
+
+write.csv(x = A, file = "../results/A.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+Kleaf <- rbind(Kleaf_avsa, Kleaf_hovu, Kleaf_trae, Kleaf_pegl, Kleaf_zema, Kleaf_chga)
+
+colnames(Kleaf)
+
+Kleaf_curve <- Kleaf %>%
+  mutate(psi_neg =  `Lowest Psileaf`*(-1)) %>%
+  dplyr::select(Species, psi_neg, `Kleaf Tcorr` ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = `Kleaf Tcorr`) %>% #for the script by Megan
+  rename(species = Species) %>%
+ # mutate(psi =  psi*(-1)) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = Kleaf_curve, file = "../results/Kleaf_curve.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+# Avsa ------
+Kleaf_avsa<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "AVSA")
+
+Kleaf_avsa$`Lowest Psileaf` <- as.numeric(Kleaf_avsa$`Lowest Psileaf`)*-1
+Kleaf_avsa$`Kleaf Tcorr` <- as.numeric(Kleaf_avsa$`Kleaf Tcorr`)
+
+max.Kleaf_avsa =max(Kleaf_avsa$`Kleaf Tcorr`,na.rm=TRUE)
+
+Kleaf_avsa$Kleaf_relative <- Kleaf_avsa$`Kleaf Tcorr`/max(Kleaf_avsa$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+#output model
+model_avsa_kleaf <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/Kleaf_curve_Logistic_fits.csv") %>% filter(data.type == "AVSA")
+
+x_seq.kleaf.avsa <- seq(min(Kleaf_avsa$`Lowest Psileaf`,na.rm =T ), max(Kleaf_avsa$`Lowest Psileaf`, na.rm = T), length.out = length(Kleaf_avsa$`Lowest Psileaf`))
+
+# Fit logistic curve to RELATIVE Kleaf
+y_model.kleaf.avsa <- (model_avsa_kleaf$A.A / (1 + ((abs(x_seq.kleaf.avsa) / model_avsa_kleaf$C.Xo)^model_avsa_kleaf$B.B))) / max.Kleaf_avsa * 100
+
+    
+Avsa_kleaf<-ggplot()+
+  geom_point(data=Kleaf_avsa,aes(x=`Lowest Psileaf`,y=Kleaf_relative),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.27,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.avsa, y = y_model.kleaf.avsa), color = 'red', size=2, alpha=0.7)+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("A. sativa")+
+  # ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
+Avsa_kleaf
+
+# Hovu ---------
+Kleaf_hovu<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "HOVU") %>% dplyr::select(-`...27`)
+
+Kleaf_hovu$`Lowest Psileaf` <- as.numeric(Kleaf_hovu$`Lowest Psileaf`)*-1
+Kleaf_hovu$`Kleaf Tcorr` <- as.numeric(Kleaf_hovu$`Kleaf Tcorr`)
+
+max.Kleaf_hovu =max(Kleaf_hovu$`Kleaf Tcorr`,na.rm=TRUE)
+
+#output model
+model_hovu_kleaf <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/Kleaf_curve_Logistic_fits.csv") %>% filter(data.type == "HOVU")
+
+x_seq.kleaf.hovu <- seq(min(Kleaf_hovu$`Lowest Psileaf`,na.rm =T ), max(Kleaf_hovu$`Lowest Psileaf`, na.rm = T), length.out = length(Kleaf_hovu$`Lowest Psileaf`))
+
+# Fit logistic curve to RELATIVE Kleaf
+y_model.kleaf.hovu <- (model_hovu_kleaf$A.A / (1 + ((abs(x_seq.kleaf.hovu) / model_hovu_kleaf$C.Xo)^model_hovu_kleaf$B.B))) / max.Kleaf_hovu * 100
+
+    
+Hovu_kleaf<-ggplot()+
+  geom_point(data=Kleaf_hovu,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_hovu*100),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.26,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.hovu, y = y_model.kleaf.hovu), color = 'red', size=2, alpha=0.7)+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("H. vulgare")+
+  # ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+
+Hovu_kleaf
+
+  
+# Trae -----------
+
+Kleaf_trae<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "TRAE")
+
+Kleaf_trae$`Lowest Psileaf` <- as.numeric(Kleaf_trae$`Lowest Psileaf`)*-1
+Kleaf_trae$`Kleaf Tcorr` <- as.numeric(Kleaf_trae$`Kleaf Tcorr`)
+
+max.Kleaf_trae =max(Kleaf_trae$`Kleaf Tcorr`,na.rm=TRUE)
+
+#output model
+model_trae_kleaf <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/Kleaf_curve_Exponential_fits.csv") %>% filter(data.type == "TRAE")
+
+x_seq.kleaf.trae <- seq(min(Kleaf_trae$`Lowest Psileaf`,na.rm =T ), max(Kleaf_trae$`Lowest Psileaf`, na.rm = T), length.out = length(Kleaf_trae$`Lowest Psileaf`))
+
+# Fit logistic curve to RELATIVE Kleaf
+y_model.kleaf.trae <- model_trae_kleaf$A.A *exp(-model_trae_kleaf$B.B*abs(x_seq.kleaf.trae))/ max.Kleaf_trae * 100
+
+    
+Trae_kleaf<-ggplot()+
+  geom_point(data=Kleaf_trae,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_trae*100),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.56,color="red",lty=5, linewidth = 2)+ #only one form exponential fit all others logistic
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.trae, y = y_model.kleaf.trae), color = 'red', size=2, alpha=0.7)+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+    ggtitle("T. aestivum")+
+  # ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+
+
+Trae_kleaf
+  
+# Pegl ----------
+Kleaf_pegl<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "PEGL")
+
+Kleaf_pegl$`Lowest Psileaf` <- as.numeric(Kleaf_pegl$`Lowest Psileaf`)*-1
+Kleaf_pegl$`Kleaf Tcorr` <- as.numeric(Kleaf_pegl$`Kleaf Tcorr`)
+
+max.Kleaf_pegl =max(Kleaf_pegl$`Kleaf Tcorr`,na.rm=TRUE)
+
+#output model
+model_pegl_kleaf <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/Kleaf_curve_Logistic_fits.csv") %>% filter(data.type == "PEGL")
+
+x_seq.kleaf.pegl <- seq(min(Kleaf_pegl$`Lowest Psileaf`,na.rm =T ), max(Kleaf_pegl$`Lowest Psileaf`, na.rm = T), length.out = length(Kleaf_pegl$`Lowest Psileaf`))
+
+# Fit logistic curve to RELATIVE Kleaf
+y_model.kleaf.pegl <- (model_pegl_kleaf$A.A / (1 + ((abs(x_seq.kleaf.pegl) / model_pegl_kleaf$C.Xo)^model_pegl_kleaf$B.B))) / max.Kleaf_pegl * 100
+
+    
+Pegl_kleaf<-ggplot()+
+  geom_point(data=Kleaf_pegl,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_pegl*100),size=5,color="red", alpha= 0.3)+
+   geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.pegl, y = y_model.kleaf.pegl), color = 'red', size=2, alpha=0.7)+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+  ggtitle("P. glaucum")+
+  # ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  
+  
+Pegl_kleaf
+
+ 
+# Chga -------------
+Kleaf_chga<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "CHGA")
+
+Kleaf_chga$`Lowest Psileaf` <- as.numeric(Kleaf_chga$`Lowest Psileaf`)*-1
+Kleaf_chga$`Kleaf Tcorr` <- as.numeric(Kleaf_chga$`Kleaf Tcorr`)
+
+max.Kleaf_chga =max(Kleaf_chga$`Kleaf Tcorr`,na.rm=TRUE)
+
+#output model
+model_chga_kleaf <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/Kleaf_curve_Logistic_fits.csv") %>% filter(data.type == "CHGA")
+
+x_seq.kleaf.chga <- seq(min(Kleaf_chga$`Lowest Psileaf`,na.rm =T ), max(Kleaf_chga$`Lowest Psileaf`, na.rm = T), length.out = length(Kleaf_chga$`Lowest Psileaf`))
+
+# Fit logistic curve to RELATIVE Kleaf
+y_model.kleaf.chga <- (model_chga_kleaf$A.A / (1 + ((abs(x_seq.kleaf.chga) / model_chga_kleaf$C.Xo)^model_chga_kleaf$B.B))) / max.Kleaf_chga * 100
+
+    
+Chga_kleaf<-ggplot()+
+  geom_point(data=Kleaf_chga,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_chga*100),size=5,color="red", alpha= 0.3)+
+   geom_vline(xintercept=-0.44,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.chga, y = y_model.kleaf.chga), color = 'red', size=2, alpha=0.7)+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+  ggtitle("C. gayan")+
+  # ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+
+
+Chga_kleaf
+
+# Zema ----------
+
+Kleaf_zema<-read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/Kleaf_september13_2022.xlsx", sheet = "ZEMA")
+
+Kleaf_zema$`Lowest Psileaf` <- as.numeric(Kleaf_zema$`Lowest Psileaf`)*-1
+Kleaf_zema$`Kleaf Tcorr` <- as.numeric(Kleaf_zema$`Kleaf Tcorr`)
+
+max.Kleaf_zema =max(Kleaf_zema$`Kleaf Tcorr`,na.rm=TRUE)
+
+
+#output model
+model_zema_kleaf <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/Kleaf_curve_Logistic_fits.csv") %>% filter(data.type == "ZEMA")
+
+x_seq.kleaf.zema <- seq(min(Kleaf_zema$`Lowest Psileaf`,na.rm =T ), max(Kleaf_zema$`Lowest Psileaf`, na.rm = T), length.out = length(Kleaf_zema$`Lowest Psileaf`))
+
+# Fit logistic curve to RELATIVE Kleaf
+y_model.kleaf.zema <- (model_zema_kleaf$A.A / (1 + ((abs(x_seq.kleaf.zema) / model_zema_kleaf$C.Xo)^model_zema_kleaf$B.B))) / max.Kleaf_zema * 100
+
+    
+Zema_kleaf<-ggplot()+
+  geom_point(data=Kleaf_zema,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_zema*100),size=5,color="red", alpha= 0.3)+
+    geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.zema, y = y_model.kleaf.zema), color = 'red', size=2, alpha=0.7)+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+  ggtitle("Z. mays")+
+  # ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+
+Zema_kleaf
+
+### graph per species gs and K----
+# Avsa ------
+
+#output model sigmoidal
+model_avsa_g <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-AVSA/GEx_g_curve_avsa_Sigmoidal_fits.csv") 
+g_avsa <- GExdata.dehy[GExdata.dehy$Species=="Avsa",]
+x_seq.g.avsa <- seq(min(g_avsa$`Psileaf from RWC`,na.rm =T ), max(g_avsa$`Psileaf from RWC`, na.rm = T), length.out = length(g_avsa$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.g.avsa <- model_avsa_g$A.A/(1+exp(-((abs(x_seq.g.avsa)-model_avsa_g$C.Xo)/model_avsa_g$B.B))) 
+
+
+Avsa_GEx_g_kleaf<-ggplot()+
+   geom_point(data=Kleaf_avsa,aes(x=`Lowest Psileaf`,y=Kleaf_relative),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.27,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.avsa, y = y_model.kleaf.avsa), color = 'red', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=gsw.area/0.55*100),size=5,color="blue", alpha=0.3)+
+   geom_vline(xintercept=-1.04,color="blue",lty=5, linewidth = 2)+
+ geom_line(aes(x = x_seq.g.avsa, y = y_model.g.avsa), color = 'blue', size=2, alpha=0.7)+
+  theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("A. sativa")+
+   ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
+Avsa_GEx_g_kleaf
+
+# Hovu ---------
+#output model sigmoidal
+model_hovu_g <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-HOVU/GEx_g_curve_hovu_Sigmoidal_fits.csv") 
+g_hovu <- GExdata.dehy[GExdata.dehy$Species=="Hovu",]
+x_seq.g.hovu <- seq(min(g_hovu$`Psileaf from RWC`,na.rm =T ), max(g_hovu$`Psileaf from RWC`, na.rm = T), length.out = length(g_hovu$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.g.hovu <- model_hovu_g$A.A/(1+exp(-((abs(x_seq.g.hovu)-model_hovu_g$C.Xo)/model_hovu_g$B.B))) 
+
+
+Hovu_GEx_g_kleaf<-ggplot()+
+ geom_point(data=Kleaf_hovu,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_hovu*100),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.26,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.hovu, y = y_model.kleaf.hovu), color = 'red', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=gsw.area/0.72*100),size=5,color="blue", alpha =0.3)+
+  geom_vline(xintercept=-1.02,color="blue",lty=5, linewidth = 2)+
+   geom_line(aes(x = x_seq.g.hovu, y = y_model.g.hovu), color = 'blue', size=2, alpha=0.7)+
+  theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("H. vulgare")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
+Hovu_GEx_g_kleaf
+
+  
+# Trae -----------
+
+model_trae_g <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-trae/GEx_g_curve_trae_Sigmoidal_fits.csv") 
+g_trae <- GExdata.dehy[GExdata.dehy$Species=="Trae",]
+x_seq.g.trae <- seq(min(g_trae$`Psileaf from RWC`,na.rm =T ), max(g_trae$`Psileaf from RWC`, na.rm = T), length.out = length(g_trae$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.g.trae <- model_trae_g$A.A/(1+exp(-((abs(x_seq.g.trae)-model_trae_g$C.Xo)/model_trae_g$B.B)))
+
+Trae_GEx_g_kleaf<-ggplot()+
+   geom_point(data=Kleaf_trae,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_trae*100),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.56,color="red",lty=5, linewidth = 2)+ #only one form exponential fit all others logistic
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.trae, y = y_model.kleaf.trae), color = 'red', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=gsw.area/0.95*100),size=5, color="blue", alpha=0.3)+
+   geom_vline(xintercept=-0.88,color="blue",lty=5, linewidth = 2)+
+   geom_line(aes(x = x_seq.g.trae, y = y_model.g.trae), color = 'blue', size=2, alpha=0.7)+
+      theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("T. aestivum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
+
+Trae_GEx_g_kleaf
+  
+# Pegl ----------
+model_pegl_g <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-pegl/GEx_g_curve_pegl_Sigmoidal_fits.csv") 
+g_pegl <- GExdata.dehy[GExdata.dehy$Species=="Pegl",]
+x_seq.g.pegl <- seq(min(g_pegl$`Psileaf from RWC`,na.rm =T ), max(g_pegl$`Psileaf from RWC`, na.rm = T), length.out = length(g_pegl$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.g.pegl <- model_pegl_g$A.A/(1+exp(-((abs(x_seq.g.pegl)-model_pegl_g$C.Xo)/model_pegl_g$B.B)))
+
+Pegl_GEx_g_kleaf<-ggplot()+
+  geom_point(data=Kleaf_pegl,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_pegl*100),size=5,color="red", alpha= 0.3)+
+   geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.pegl, y = y_model.kleaf.pegl), color = 'red', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=gsw.area/0.245*100),size=5, color="blue",alpha=0.3)+
+  geom_line(aes(x = x_seq.g.pegl, y = y_model.g.pegl), color = 'blue', size=2, alpha=0.7)+
+   geom_vline(xintercept=-0.7853,color="blue",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+    theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("P. glaucum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
+Pegl_GEx_g_kleaf
+
+ 
+# Chga -------------
+model_chga_g <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-chga/GEx_g_curve_chga_Sigmoidal_fits.csv") 
+g_chga <- GExdata.dehy[GExdata.dehy$Species=="Chga",]
+x_seq.g.chga <- seq(min(g_chga$`Psileaf from RWC`,na.rm =T ), max(g_chga$`Psileaf from RWC`, na.rm = T), length.out = length(g_chga$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.g.chga <- model_chga_g$A.A/(1+exp(-((abs(x_seq.g.chga)-model_chga_g$C.Xo)/model_chga_g$B.B)))
+
+Chga_GEx_g_kleaf<- ggplot()+
+  geom_point(data=Kleaf_chga,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_chga*100),size=5,color="red", alpha= 0.3)+
+   geom_vline(xintercept=-0.44,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.chga, y = y_model.kleaf.chga), color = 'red', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=gsw.area/0.183*100),size=5, color="blue",alpha=0.3)+
+  geom_line(aes(x = x_seq.g.chga, y = y_model.g.chga), color = 'blue', size=2, alpha=0.7)+
+   geom_vline(xintercept=-0.92,color="blue",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-0.44,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("C. gayan")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+ xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
+Chga_GEx_g_kleaf
+
+# Zema ----------
+
+model_zema_g <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-zema/GEx_g_curve_zema_Sigmoidal_fits.csv") 
+g_zema <- GExdata.dehy[GExdata.dehy$Species=="Zema",]
+x_seq.g.zema <- seq(min(g_zema$`Psileaf from RWC`,na.rm =T ), max(g_zema$`Psileaf from RWC`, na.rm = T), length.out = length(g_zema$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.g.zema <- model_zema_g$A.A/(1+exp(-((abs(x_seq.g.zema)-model_zema_g$C.Xo)/model_zema_g$B.B)))
+
+Zema_GEx_g_kleaf<- ggplot()+
+  geom_point(data=Kleaf_zema,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_zema*100),size=5,color="red", alpha= 0.3)+
+    geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.zema, y = y_model.kleaf.zema), color = 'red', size=2, alpha=0.7)+
+   geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=gsw.area/0.204*100),size=5, color="blue",alpha=0.3)+
+  geom_line(aes(x = x_seq.g.zema, y = y_model.g.zema), color = 'blue', size=2, alpha=0.7)+
+   geom_vline(xintercept=-0.78,color="blue",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("Z. mays")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Zema"))))
+Zema_GEx_g_kleaf
+
+
+
+##ALL graphs --------
+
+
+#data
+
+Kleaf <- rbind(Kleaf_avsa, Kleaf_hovu, Kleaf_trae, Kleaf_pegl, Kleaf_zema, Kleaf_chga)
+
+colnames(Kleaf)
+
+Kleaf_curve <- Kleaf %>%
+  mutate(psi_neg =  `Lowest Psileaf`*(-1)) %>%
+  dplyr::select(Species, psi_neg, `Kleaf Tcorr` ) %>%
+  rename(psi = psi_neg) %>%
+  rename(gs = `Kleaf Tcorr`) %>% #for the script by Megan
+  rename(species = Species) %>%
+ # mutate(psi =  psi*(-1)) %>%
+  mutate(`data type` = 1) %>%
+  relocate(`data type` , .after = species )%>%
+  drop_na()
+
+write.csv(x = Kleaf_curve, file = "../results/Kleaf_curve.csv") #ready for 
+
+#after fitting curve with "Closure Script 2017 for FvFm" and "R function MB 2017 for FvFm"
+
+# Avsa ------
+
+#output model sigmoidal
+model_avsa_A <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-AVSA/GEx_A_curve_avsa_Sigmoidal_fits.csv") 
+A_avsa <- GExdata.dehy[GExdata.dehy$Species=="Avsa",]
+x_seq.A.avsa <- seq(min(A_avsa$`Psileaf from RWC`,na.rm =T ), max(A_avsa$`Psileaf from RWC`, na.rm = T), length.out = length(A_avsa$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.A.avsa <- model_avsa_A$A.A/(1+exp(-((abs(x_seq.A.avsa)-model_avsa_A$C.Xo)/model_avsa_A$B.B))) 
+
+
+Avsa_GEx_g_kleaf<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=An.area/33.12*100),size=5,color="green", alpha=0.3)+
+  geom_line(aes(x = x_seq.A.avsa, y = y_model.A.avsa), color = 'green', size=2, alpha=0.7)+
+  geom_vline(xintercept=-1.186,color="#006400",lty=5, linewidth = 2)+
+   geom_point(data=Kleaf_avsa,aes(x=`Lowest Psileaf`,y=Kleaf_relative),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.27,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.avsa, y = y_model.kleaf.avsa), color = 'red', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Avsa",],aes(x=`Psileaf from RWC`,y=gsw.area/0.55*100),size=5,color="blue", alpha=0.3)+
+   geom_vline(xintercept=-1.04,color="blue",lty=5, linewidth = 2)+
+ geom_line(aes(x = x_seq.g.avsa, y = y_model.g.avsa), color = 'blue', size=2, alpha=0.7)+
+  theme_minimal()+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("A. sativa")+
+   ylab(expression(paste("relative A"[n],", g"[sw],", ",K["leaf"],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Avsa"))))
+Avsa_GEx_g_kleaf
+
+# Hovu ---------
+#output model sigmoidal
+model_hovu_A <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-hovu/GEx_A_curve_hovu_Sigmoidal_fits.csv") 
+A_hovu <- GExdata.dehy[GExdata.dehy$Species=="Hovu",]
+x_seq.A.hovu <- seq(min(A_hovu$`Psileaf from RWC`,na.rm =T ), max(A_hovu$`Psileaf from RWC`, na.rm = T), length.out = length(A_hovu$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.A.hovu <- model_hovu_A$A.A/(1+exp(-((abs(x_seq.A.hovu)-model_hovu_A$C.Xo)/model_hovu_A$B.B))) 
+
+Hovu_GEx_g_kleaf<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=An.area/34.97*100),size=5,color="green",alpha=0.3)+
+  geom_vline(xintercept=-1.06,color="#006400",lty=5, linewidth = 2)+
+  geom_point(data=Kleaf_hovu,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_hovu*100),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.26,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.hovu, y = y_model.kleaf.hovu), color = 'red', size=2, alpha=0.7)+
+   geom_line(aes(x = x_seq.A.hovu, y = y_model.A.hovu), color = 'green', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Hovu",],aes(x=`Psileaf from RWC`,y=gsw.area/0.72*100),size=5,color="blue", alpha =0.3)+
+  geom_vline(xintercept=-1.02,color="blue",lty=5, linewidth = 2)+
+   geom_line(aes(x = x_seq.g.hovu, y = y_model.g.hovu), color = 'blue', size=2, alpha=0.7)+
+  theme_minimal()+
+  theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("H. vulgare")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Hovu"))))
+Hovu_GEx_g_kleaf
+
+  
+# Trae -----------
+#output model sigmoidal
+model_trae_A <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-trae/GEx_A_curve_trae_Sigmoidal_fits.csv") 
+A_trae <- GExdata.dehy[GExdata.dehy$Species=="Trae",]
+x_seq.A.trae <- seq(min(A_trae$`Psileaf from RWC`,na.rm =T ), max(A_trae$`Psileaf from RWC`, na.rm = T), length.out = length(A_trae$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.A.trae <- model_trae_A$A.A/(1+exp(-((abs(x_seq.A.trae)-model_trae_A$C.Xo)/model_trae_A$B.B))) 
+
+
+Trae_GEx_g_kleaf<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=An.area/38.84*100),size=5,color="green",alpha=0.3)+
+  geom_vline(xintercept=-0.96239419521822,color="#006400",lty=5, linewidth = 2)+
+    geom_point(data=Kleaf_trae,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_trae*100),size=5,color="red", alpha= 0.3)+
+  geom_vline(xintercept=-0.56,color="red",lty=5, linewidth = 2)+ #only one form exponential fit all others logistic
+  theme_minimal()+
+  geom_line(aes(x = x_seq.kleaf.trae, y = y_model.kleaf.trae), color = 'red', size=2, alpha=0.7)+
+   geom_line(aes(x = x_seq.A.trae, y = y_model.A.trae), color = 'green', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Trae",],aes(x=`Psileaf from RWC`,y=gsw.area/0.95*100),size=5, color="blue", alpha=0.3)+
+   geom_vline(xintercept=-0.88,color="blue",lty=5, linewidth = 2)+
+   geom_line(aes(x = x_seq.g.trae, y = y_model.g.trae), color = 'blue', size=2, alpha=0.7)+
+    theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("T. aestivum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Trae"))))
+
+Trae_GEx_g_kleaf
+  
+# Pegl ----------
+#output model sigmoidal
+model_pegl_A <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-pegl/GEx_A_curve_pegl_Sigmoidal_fits.csv") 
+A_pegl <- GExdata.dehy[GExdata.dehy$Species=="Pegl",]
+x_seq.A.pegl <- seq(min(A_pegl$`Psileaf from RWC`,na.rm =T ), max(A_pegl$`Psileaf from RWC`, na.rm = T), length.out = length(A_pegl$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.A.pegl <- model_pegl_A$A.A/(1+exp(-((abs(x_seq.A.pegl)-model_pegl_A$C.Xo)/model_pegl_A$B.B))) 
+
+Pegl_GEx_g_kleaf<-ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=An.area/43.22*100),size=5,color="green",alpha=0.3)+
+   geom_vline(xintercept=-0.787984381381875,color="#006400",lty=5, linewidth = 2)+
+ geom_point(data=Kleaf_pegl,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_pegl*100),size=5,color="red", alpha= 0.3)+
+   geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.kleaf.pegl, y = y_model.kleaf.pegl), color = 'red', size=2, alpha=0.7)+
+   geom_vline(xintercept=-0.7853,color="blue",lty=5, linewidth = 2)+
+   geom_line(aes(x = x_seq.A.pegl, y = y_model.A.pegl), color = 'green', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Pegl",],aes(x=`Psileaf from RWC`,y=gsw.area/0.245*100),size=5, color="blue",alpha=0.3)+
+  geom_line(aes(x = x_seq.g.pegl, y = y_model.g.pegl), color = 'blue', size=2, alpha=0.7)+
+  geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+    theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("P. glaucum")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Pegl"))))
+Pegl_GEx_g_kleaf
+
+ 
+# Chga -------------
+#output model sigmoidal
+model_chga_A <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-chga/GEx_A_curve_chga_Sigmoidal_fits.csv") 
+A_chga <- GExdata.dehy[GExdata.dehy$Species=="Chga",]
+x_seq.A.chga <- seq(min(A_chga$`Psileaf from RWC`,na.rm =T ), max(A_chga$`Psileaf from RWC`, na.rm = T), length.out = length(A_chga$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.A.chga <- model_chga_A$A.A/(1+exp(-((abs(x_seq.A.chga)-model_chga_A$C.Xo)/model_chga_A$B.B))) 
+
+
+Chga_GEx_g_kleaf<- ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=An.area/33.28*100),size=5,color="green",alpha=0.3)+
+  geom_vline(xintercept=-0.928486823093904,color="#006400",lty=5, linewidth = 2)+
+  geom_point(data=Kleaf_chga,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_chga*100),size=5,color="red", alpha= 0.3)+
+   geom_vline(xintercept=-0.44,color="red",lty=5, linewidth = 2)+
+  geom_line(aes(x = x_seq.A.chga, y = y_model.A.chga), color = 'green', size=2, alpha=0.7)+
+  geom_line(aes(x = x_seq.kleaf.chga, y = y_model.kleaf.chga), color = 'red', size=2, alpha=0.7)+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Chga",],aes(x=`Psileaf from RWC`,y=gsw.area/0.183*100),size=5, color="blue",alpha=0.3)+
+  geom_line(aes(x = x_seq.g.chga, y = y_model.g.chga), color = 'blue', size=2, alpha=0.7)+
+   geom_vline(xintercept=-0.92,color="blue",lty=5, linewidth = 2)+
+  geom_vline(xintercept=-0.44,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("C. gayan")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+ xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Chga"))))
+Chga_GEx_g_kleaf
+
+# Zema ----------
+#output model sigmoidal
+model_zema_A <- read.csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/models/GEx-zema/GEx_A_curve_zema_Sigmoidal_fits.csv") 
+A_zema <- GExdata.dehy[GExdata.dehy$Species=="Zema",]
+x_seq.A.zema <- seq(min(A_zema$`Psileaf from RWC`,na.rm =T ), max(A_zema$`Psileaf from RWC`, na.rm = T), length.out = length(A_zema$`Psileaf from RWC`))
+
+# Fit sigmoidal to RELATIVE Kleaf
+y_model.A.zema <- model_zema_A$A.A/(1+exp(-((abs(x_seq.A.zema)-model_zema_A$C.Xo)/model_zema_A$B.B))) 
+
+
+Zema_GEx_g_kleaf<- ggplot()+
+  geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=An.area/33.53*100),size=5,color="green",alpha=0.3)+
+  
+   geom_vline(xintercept=-0.77,color="#006400",lty=5, linewidth = 2)+
+  
+    geom_point(data=Kleaf_zema,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`/max.Kleaf_zema*100),size=5,color="red", alpha= 0.3)+
+  
+    geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  
+   geom_line(aes(x = x_seq.A.zema, y = y_model.A.zema), color = 'green', size=2, alpha=0.7)+
+  
+  geom_line(aes(x = x_seq.kleaf.zema, y = y_model.kleaf.zema), color = 'red', size=2, alpha=0.7)+
+   geom_point(data=GExdata.dehy[GExdata.dehy$Species=="Zema",],aes(x=`Psileaf from RWC`,y=gsw.area/0.204*100),size=5, color="blue",alpha=0.3)+
+  geom_line(aes(x = x_seq.g.zema, y = y_model.g.zema), color = 'blue', size=2, alpha=0.7)+
+   geom_vline(xintercept=-0.78,color="blue",lty=5, linewidth = 2)+
+   geom_vline(xintercept=-0.22,color="red",lty=5, linewidth = 2)+
+  theme_minimal()+
+   theme(axis.title.y = element_blank(),  # Remove y-axis titleaxis.title.x=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
+        legend.title=element_text(),
+        title = element_text(size=13, face = "bold.italic"))+
+   ggtitle("Z. mays")+
+ # ylab(expression(paste("relative A"[n],", g"[sw],", ",Phi["PSII"]," (%)")))+
+   ylab(expression(paste("relative A"[n],", g"[sw],", (%)")))+
+  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlim(0,-1.6)+
+  ylim(0,101)
+  #annotate("text",x=10,y=90,label=expression(paste(italic("Zema"))))
+Zema_GEx_g_kleaf
+
+### all K plots ----
+GEx_plot_K <- ggarrange(Avsa_kleaf, Hovu_kleaf, Trae_kleaf, Pegl_kleaf, Zema_kleaf, Chga_kleaf, ncol =3, nrow = 2)
+
+GEx_plot_K
+
+ggsave(filename = "../results/GEx_plotK.jpg", plot = GEx_plot_K, width = 12, height = 8)
+
+### g and Kleaf ----
+GEx_plot <- ggarrange(Avsa_GEx_g_kleaf, Hovu_GEx_g_kleaf, Trae_GEx_g_kleaf, Pegl_GEx_g_kleaf, Zema_GEx_g_kleaf, Chga_GEx_g_kleaf, ncol =3, nrow = 2)
+
+GEx_plot 
+
+ggsave(filename = "../results/GEx_plot_g_K.jpg", plot = GEx_plot, width = 12, height = 8)
+
 ```
 
 # X50 data
@@ -2939,4 +5216,571 @@ pca1<-fviz_pca_biplot(pc1,label="var",col.var="black",repel=T,
 pca1
 ```
 
+
+#Leaf density and leaf capacitance plots for conference
+```{r}
+SRCdata <- read.csv("../data/SRCdata.csv") 
+
+mean_SRCdata<-ddply(SRCdata,c("Metabolism"),summarise,
+                m.LD=mean(LD,na.rm=TRUE),n.LD=sum(!is.na(LD)),se.LD=sd(LD,na.rm=T)/sqrt(n.LD))
+
+# LD
+plot_LD<-ggplot(SRCdata,aes(x=Metabolism,y=LD))+
+  theme_minimal()+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  geom_jitter(data=SRCdata,aes(x=Metabolism,y=LD, color= Metabolism),size=3,alpha=0.5)+
+  scale_color_manual(values=c("#E1BE6A", "#40B0A6"))+
+  ylim(0,0.4)+
+  ggtitle(expression(paste("LD (g cm"^-3,")")))+
+  theme(axis.text.y=element_text(size=20),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=20,face="italic"),
+        legend.text=element_text(size=20),
+        legend.position = "none",
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=0.040,label=expression(paste(italic(bar("x"))," = 0.14")),size=7)+
+  annotate("text",x=1,y=0.016,label=expression(paste(italic("n")," = 129")),size=7)+
+  annotate("text",x=2,y=0.040,label=expression(paste("0.19")),size=7)+
+  annotate("text",x=2,y=0.016,label=expression(paste("124")),size=7)+
+  annotate("text",x=1,y=0.35,label=expression(paste(bold("a"))),size=7)+
+  annotate("text",x=2,y=0.35,label=expression(paste(bold("b"))),size=7)
+plot_LD
+
+ggsave(filename = "../results/plot_LD.jpg", plot = plot_LD, width = 5, height = 6)
+
+
+
+
+# stat
+lm1<-lm(LD~Metabolism,data=SRCdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Metabolism",group=T)
+tuk1$groups
+
+
+#Leaf capacitance
+
+PVdata<-read_xlsx(path = "../data/C3C4 Grasses - PV.xlsx", sheet = "C3C4G PV R")
+
+PVdata$Metabolism<-factor(PVdata$Metabolism)
+PVdata$Species<-factor(PVdata$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
+
+# variable calculation
+# For each leaf, leaf area T.LA and thickness T.LT were measured along the PV curve and at the dry stage D.LA, D.LT for calculating the percentage loss of thickness PLT and area PLAat turgor loss point and in a dry leaf 
+PVdata$tlp.PLT<-100-PVdata$tlp.LT/PVdata$T.LT*100
+PVdata$D.PLT<-100-PVdata$D.LT/PVdata$T.LT*100
+
+PVdata$tlp.PLA<-100-PVdata$tlp.LA/PVdata$T.LA*100
+PVdata$D.PLA<-100-PVdata$D.LA/PVdata$T.LA*100
+
+PVdata$T.LV<-PVdata$T.LA*PVdata$T.LT/10
+PVdata$tlp.LV<-PVdata$tlp.LA*PVdata$tlp.LT/10
+PVdata$D.LV<-PVdata$D.LA*PVdata$D.LT/10
+
+PVdata$tlp.PLV<-100-PVdata$tlp.LV/PVdata$T.LV*100
+PVdata$D.PLV<-100-PVdata$D.LV/PVdata$T.LV*100
+
+#leaf saturated water content, LMA, density, LDMC, capacitance at full turgor and at turgor loss point (Cft and Ctlp). leaf-specific capacitances (C*) were obtained on both area and dry mass basis. bulk modulus of elasticity from total water content: --> The bulk modulus of elasticity from symplast water content (ε) was calculated as ε = ε* (1–af), following Bartlett et al (2012). The fraction of apoplastic water (af) was calculated as the 1–x intercept in the 1/Ψ vs 1–RWC relationship
+PVdata$SWCm<-(PVdata$TW-PVdata$DW)/PVdata$DW #?
+PVdata$LMA<-PVdata$DW/1000/(PVdata$T.LA/10000)
+PVdata$LD<-PVdata$DW/1000/PVdata$T.LV
+PVdata$LDMC<-PVdata$DW/PVdata$TW
+PVdata$SWCpv<-PVdata$SWpv/PVdata$DW #?
+PVdata$cft.mass<-PVdata$cft*PVdata$SWpv/PVdata$DW*1000
+PVdata$cft.area<-PVdata$cft.mass/PVdata$LMA
+PVdata$ctlp.mass<-PVdata$ctlp*PVdata$SWpv/PVdata$DW*1000
+PVdata$ctlp.area<-PVdata$ctlp.mass/PVdata$LMA
+PVdata$em<-PVdata$em.*(1-PVdata$af)
+
+# means
+m.PVdata<-ddply(PVdata,c("Metabolism", "Species"),summarise,
+            m.osp.tlp=mean(osp.tlp,na.rm=TRUE),n.osp.tlp=sum(!is.na(osp.tlp)),se.osp.tlp=sd(osp.tlp,na.rm=T)/sqrt(n.osp.tlp),
+            m.cft=mean(cft,na.rm=TRUE),n.cft=sum(!is.na(cft)),se.cft=sd(cft,na.rm=T)/sqrt(n.cft),
+            m.ctlp=mean(ctlp,na.rm=TRUE),n.ctlp=sum(!is.na(ctlp)),se.ctlp=sd(ctlp,na.rm=T)/sqrt(n.ctlp),
+            m.cft.area=mean(cft.area,na.rm=TRUE),n.cft.area=sum(!is.na(cft.area)),se.cft.area=sd(cft.area,na.rm=T)/sqrt(n.cft.area),
+            m.cft.mass=mean(cft.mass,na.rm=TRUE),n.cft.mass=sum(!is.na(cft.mass)),se.cft.mass=sd(cft.mass,na.rm=T)/sqrt(n.cft.mass),
+            m.ctlp.area=mean(ctlp.area,na.rm=TRUE),n.ctlp.area=sum(!is.na(ctlp.area)),se.ctlp.area=sd(ctlp.area,na.rm=T)/sqrt(n.ctlp.area),
+            m.ctlp.mass=mean(ctlp.mass,na.rm=TRUE),n.ctlp.mass=sum(!is.na(ctlp.mass)),se.ctlp.mass=sd(ctlp.mass,na.rm=T)/sqrt(n.ctlp.mass),
+            m.LD=mean(LD,na.rm=TRUE),n.LD=sum(!is.na(LD)),se.LD=sd(LD,na.rm=T)/sqrt(n.LD))
+
+
+plot_LD_pvcurve<-ggplot(PVdata,aes(x=Metabolism,y=LD))+
+  theme_minimal()+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  geom_jitter(data=PVdata,aes(x=Metabolism,y=LD, color= Metabolism),size=3,alpha=0.5)+
+  scale_color_manual(values=c("#E1BE6A", "#40B0A6"))+
+  ylim(0,0.4)+
+  ggtitle(expression(paste("LD (g cm"^-3,")")))+
+  theme(axis.text.y=element_text(size=20),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=20,face="italic"),
+        legend.text=element_text(size=20),
+        legend.position = "none",
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=0.040,label=expression(paste(italic(bar("x"))," = 0.15")),size=7)+
+  annotate("text",x=1,y=0.016,label=expression(paste(italic("n")," = 26")),size=7)+
+  annotate("text",x=2,y=0.040,label=expression(paste("0.19")),size=7)+
+  annotate("text",x=2,y=0.016,label=expression(paste("26")),size=7)+
+  annotate("text",x=1,y=0.35,label=expression(paste(bold("a"))),size=7)+
+  annotate("text",x=2,y=0.35,label=expression(paste(bold("b"))),size=7)
+
+ggsave(filename = "../results/plot_LD_pvcurve.jpg", plot = plot_LD_pvcurve, width = 5, height = 6)
+
+# stat
+lm1<-lm(LD~Metabolism,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Metabolism",group=T)
+tuk1$groups
+
+#capacitance
+plot_C_pvcurve<-ggplot(PVdata,aes(x=Metabolism,y=ctlp))+
+  theme_minimal()+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  geom_jitter(data=PVdata,aes(x=Metabolism,y=ctlp, color= Metabolism),size=3,alpha=0.5)+
+   scale_color_manual(values=c("#8B0000", "#1ca09b"))+
+  ylim(0,1)+
+  ggtitle(expression(paste("Ctlp (MPa"^-1,")")))+
+  theme(axis.text.y=element_text(size=20),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=20,face="italic"),
+        legend.text=element_text(size=20),
+        legend.position = "none",
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=0.1,label=expression(paste(italic(bar("x"))," = 0.40")),size=7)+
+  annotate("text",x=1,y=0.016,label=expression(paste(italic("n")," = 26")),size=7)+
+  annotate("text",x=2,y=0.1,label=expression(paste("0.60")),size=7)+
+  annotate("text",x=2,y=0.016,label=expression(paste("26")),size=7)+
+  annotate("text",x=1,y=0.8,label=expression(paste(bold("a"))),size=7)+
+  annotate("text",x=2,y=0.8,label=expression(paste(bold("b"))),size=7)
+
+ggsave(filename = "../results/plot_C_pvcurve.jpg", plot = plot_C_pvcurve, width = 5, height = 6)
+
+# stat
+lm1<-lm(ctlp~Metabolism,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Metabolism",group=T)
+tuk1$groups
+
+#tlp
+
+plot_tlp_pvcurve<-ggplot(PVdata,aes(x=Metabolism,y=osp.tlp))+
+  theme_minimal()+
+  geom_boxplot(lwd=0.2,fatten=5)+
+  geom_jitter(data=PVdata,aes(x=Metabolism,y=osp.tlp, color= Metabolism),size=3,alpha=0.5)+
+  scale_color_manual(values=c("#8B0000", "#1ca09b"))+ 
+ ylim(-1.5,-0.3)+
+  ggtitle(expression(paste("πtlp (MPa)")))+
+  theme(axis.text.y=element_text(size=20),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=20,face="italic"),
+        legend.text=element_text(size=20),
+        legend.position = "none",
+        plot.title = element_text(size = 20, hjust = 0.5))+
+  annotate("text",x=1,y=-1.2,label=expression(paste(italic(bar("x"))," = -1.00")),size=7)+
+  annotate("text",x=1,y=-1.3,label=expression(paste(italic("n")," = 26")),size=7)+
+  annotate("text",x=2,y=-1.2,label=expression(paste("-0.78")),size=7)+
+  annotate("text",x=2,y=-1.3,label=expression(paste("26")),size=7)+
+  annotate("text",x=1,y=-0.5,label=expression(paste(bold("a"))),size=7)+
+  annotate("text",x=2,y=-0.5,label=expression(paste(bold("b"))),size=7)
+plot_tlp_pvcurve
+ggsave(filename = "../results/plot_tlp_pvcurve.jpg", plot = plot_tlp_pvcurve, width = 5, height = 6)
+
+# stat
+lm1<-lm(osp.tlp~Metabolism,data=PVdata)
+anova(lm1)
+tuk1<-HSD.test(lm1,"Metabolism",group=T)
+tuk1$groups
+```
+
+#correlations
+```{r}
+summary <- read_excel("../../Miquel_data/results/summary.xlsx", 
+    sheet = "Feuil1")
+
+# Compute R² values
+lm_A50_tlp <- lm(A50 ~ tlp, data = summary)
+r2_A50_tlp <- summary(lm_A50_tlp)$r.squared
+p_A50_tlp <- 0.01
+
+lm_g50_tlp <- lm(g50 ~ tlp, data = summary)
+r2_g50_tlp <- summary(lm_g50_tlp)$r.squared
+p_g50_tlp <- 0.03
+
+
+lm_embo_Ctlp <- lm(embolism_onset ~ Ctlp, data = summary)
+r2_embo_Ctlp <- summary(lm_embo_Ctlp)$r.squared
+p_embo_Ctlp <- 0.01
+
+lm_fvfm50_Ctlp <- lm(fvfm50 ~ Ctlp, data = summary)
+r2_fvfm50_Ctlp <- summary(lm_fvfm50_Ctlp)$r.squared
+p_fvfm50_Ctlp <- 0.051
+
+colnames(summary)
+
+# Define custom colors for metabolism groups
+custom_colors <- c("C3" = "#8B0000", "C4" = "#1ca09b") # Adjust colors as needed
+
+# Plot A50 vs TLP
+plot_A50 <- ggplot(summary, aes(x = tlp, y = A50, color = Metabolism, shape = Species)) +
+  geom_point(size = 8) +
+   geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dashed")+
+  scale_color_manual(values = custom_colors) +  # Use custom colors
+  theme_minimal(base_size =20)+
+  labs(x = "Turgor Loss Point (MPa)", y = "A50 (µmol CO2 m⁻² s⁻¹)", color = "Metabolism") +
+  theme(legend.position = "right")+
+  annotate("text", x = -1.1, y = 0.75, 
+           label = paste0("R² = ", round(r2_A50_tlp, 2)), size = 5)+
+  annotate("text", x = -1.1, y = 0.7, 
+           label = paste0("p-value = ", round(p_A50_tlp, 2)), size = 5)+
+  xlim(-1.5,-0.3)+
+  ylim(0.5,1.3)
+
+
+
+# Plot g50 vs TLP
+plot_g50 <- ggplot(summary, aes(x = tlp, y = g50, color = Metabolism, shape = Species)) +
+  geom_point(size = 8) +
+   geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dashed")+
+  scale_color_manual(values = custom_colors) +  # Use custom colors
+  theme_minimal(base_size =20)+
+  labs(x = "Turgor Loss Point (MPa)", y = "g50 (mol H₂O m⁻² s⁻¹)", color = "Metabolism") +
+  theme(legend.position = "right")+
+   annotate("text", x = -1.1, y = 0.75, 
+           label = paste0("R² = ", round(r2_g50_tlp, 2)), size = 5)+
+  annotate("text", x = -1.1, y = 0.7, 
+           label = paste0("p-value = ", round(p_g50_tlp, 2)), size = 5)+
+  xlim(-1.5,-0.3)+
+  ylim(0.5,1.3)
+
+corr_A50_g50_tlp <- ggarrange(plot_A50, plot_g50, ncol =2, nrow = 1, common.legend = T, legend = "bottom")
+
+
+ggsave(filename = "../results/corr_A50_g50_tlp.jpg", plot = corr_A50_g50_tlp, width = 12, height = 8)
+
+# Plot A50 vs Ctlp
+plot_A50_Ctlp <- ggplot(summary, aes(x = Ctlp, y = A50, color = Metabolism, shape = Species)) +
+  geom_point(size = 8) +
+  geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dashed")+
+  scale_color_manual(values = custom_colors) +  # Use custom colors
+  theme_minimal(base_size =20)+
+  labs(x = "Capacitance (Ctlp)", y = "A50 (µmol CO2 m⁻² s⁻¹)", color = "Metabolism") +
+  theme(legend.position = "right")+
+   annotate("text", x = 0.4, y = 0.8, 
+           label = paste0("R² = ", round(r2_A50_Ctlp, 2)), size = 5)
+
+
+# Plot g50 vs Ctlp
+plot_g50_Ctlp <- ggplot(summary, aes(x = Ctlp, y = g50, color = Metabolism, shape = Species)) +
+  geom_point(size = 8) +
+  geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dashed")+
+  scale_color_manual(values = custom_colors) +  # Use custom colors
+  theme_minimal(base_size =20)+
+  labs(x = "Capacitance (Ctlp)", y = "g50 (mol H₂O m⁻² s⁻¹)", color = "Metabolism") +
+  theme(legend.position = "right")
+  annotate("text", x = 0.4, y = 0.8, 
+           label = paste0("R² = ", round(r2_g50_Ctlp, 2)), size = 5)
+
+
+corr_A50_g50_Ctlp <- ggarrange(plot_A50_Ctlp, plot_g50_Ctlp, ncol =2, nrow = 1, common.legend = T, legend = "bottom")
+
+
+ggsave(filename = "../results/corr_A50_g50_Ctlp.jpg", plot = corr_A50_g50_Ctlp, width = 12, height = 8)
+
+# Plot embolims onset vs Ctlp
+
+plot_embo_Ctlp <- ggplot(summary, aes(x = Ctlp, y = embolism_onset, color = Metabolism, shape = Species)) +
+  geom_point(size = 8) +
+   geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dashed")+
+  scale_color_manual(values = custom_colors) +  # Use custom colors
+  theme_minimal(base_size =20)+
+  labs(x = "Capacitance (Ctlp)", y = "Embolism onset - RWC (%)", color = "Metabolism") +
+  theme(legend.position = "right")+
+   annotate("text", x = 0.2, y = 17, 
+           label = paste0("R² = ", round(r2_embo_Ctlp, 2)), size = 5)+
+  annotate("text", x = 0.2, y = 14, 
+           label = paste0("p-value = ", round(p_embo_Ctlp, 2)), size = 5)+
+  xlim(0.1,0.8)+
+  ylim(0,100)
+
+plot_embo_Ctlp
+
+# plot fvfm50 vs Ctlp
+
+plot_fvfm50_Ctlp <- ggplot(summary, aes(x = Ctlp, y = fvfm50, color = Metabolism, shape = Species)) +
+  geom_point(size = 8) +
+   geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "black", linetype = "dashed")+
+  scale_color_manual(values = custom_colors) +  # Use custom colors
+  theme_minimal(base_size =20)+
+  labs(x = "Capacitance (Ctlp)", y = "FvFm 50 - RWC (%)", color = "Metabolism") +
+  theme(legend.position = "right")+
+   annotate("text", x = 0.2, y =15, 
+           label = paste0("R² = ", round(r2_fvfm50_Ctlp, 2)), size = 5)+
+  annotate("text", x = 0.2, y = 13, 
+           label = paste0("p-value = ", round(p_fvfm50_Ctlp, 2)), size = 5)+
+  xlim(0.1,0.8)+
+  ylim(0,60)
+
+corr_embo_fvfm50_Ctlp <- ggarrange(plot_fvfm50_Ctlp, plot_embo_Ctlp, ncol =2, nrow = 1, common.legend = T, legend = "bottom")
+
+corr_embo_fvfm50_Ctlp
+
+ggsave(filename = "../results/corr_embo_fvfm50_Ctlp.jpg", plot = corr_embo_fvfm50_Ctlp, width = 12, height = 8)
+```
+
+#whole table corr
+```{r}
+# Load data
+data <- read_excel("../results/summary.xlsx")
+
+data <- data[-1,]
+
+data[] <- lapply(data, function(x) as.numeric(as.character(x)))
+
+
+data$Krootmax <- data$Krootmax * 1000
+data$`Kplant max` <- data$`Kplant max` * 1000
+
+# Remove non-numeric columns (Species, Metabolism)
+numeric_data <- data %>% select(-Species, -Metabolism)
+
+# Calculate Pearson correlation matrix
+cor_matrix <- cor(numeric_data, method = "pearson", use = "pairwise.complete.obs")
+
+# View the matrix
+print(cor_matrix)
+
+# Optionally, visualize it
+library(corrplot)
+corrplot(cor_matrix, method = "color", tl.cex = 0.7)
+
+```
+
+#functions
+```{r}
+#' Tool for estimating confidence intervals for percent loss in conductance.
+#'
+#' @details This function takes the best fit model chosen by `fx_select()` and estimates confidence intervals
+#'  by re-sampling model parameters from a normal distribution based on mean and standard deviation. Note that
+#'  the standard deviation used here is estimated as the square root of a hessian matrix created when the anneal
+#'  functions tests for the best fit model.
+#'
+#'\itemize{
+#'    \item Annealing function info: \url{https://tinyurl.com/annealingsim}
+#'    \item Github page: \url{https://github.com/cran/likelihood/blob/master/R/anneal.R}. See lines 742-797 specifically within the code.
+#' }
+
+#' @param fit Fit object(s) from `fit_vuln_curve()`
+#' @param px Percent loss in conductance. Default is 0.5.
+#' @param psi_max Value of psi at which to estimate maximum conductance.
+#' @param seed Value for reproducibility
+#' @param sims Number of simulations to run. Default is 1000.
+#'
+#' @importFrom stats qt sd median
+#' @export bootPX
+#'
+bootPX <- function(fit, px = 0.5, psi_max, seed = 123, sims = 1000){
+
+  fit.list <- attr(fit, "fit.list")
+
+  if(fit.list){
+    n_fit <- length(fit)
+    model.test <- lapply(seq_len(n_fit), \(x) fit[[x]]$data.type) %in% c("exp2", "log", "sig", "Linear", "exp")
+  }else{
+    n_fit <- 1
+    model.test <- fit$data.type %in% c("exp2", "log", "sig", "Linear", "exp")
+  }
+
+  #check if the model type(s) is/are valid
+  if (any(!model.test)) {
+    stop("Bootstrap: Model type(s) must be one of the following: exp2, log, sig, Linear, exp")
+  }
+
+  #check if the percent loss in conductance is valid
+  if(px>1|px<0){
+    stop("Percent loss in conductance must be between 0 and 1")
+  }
+
+  #check if the psi_max value is valid
+  if(psi_max<0){
+    stop("Value for psi_max must be greater than 0")
+  }
+
+
+px_char <- paste0(as.character(px), "@", as.character(psi_max))
+
+alpha = 0.05
+
+output <- vector(mode = "list", length = n_fit)
+
+for(i in seq_len(n_fit)){
+
+  if(fit.list){
+    fit_temp <- fit[[i]]
+  }else{
+    fit_temp <- fit
+  }
+
+  px_est <- switch(px_char,
+                   "0.5@"=fit_temp$psi_k50,
+                   "0.8@"=fit_temp$psi_k80,
+                   "0.5@0.1"=fit_temp$psi_k50_at0.1,
+                   "0.8@0.1"=fit_temp$psi_k80_at0.1)
+
+  fit_resample <- resamplePX(fit = fit_temp, sims = sims,
+                        px = px, psi_max = psi_max, seed = seed)
+  #suppressing warnings here can help if errors resulting from NAs stop you from moving forward.
+  finite_values <- sapply(fit_resample, function(x) is.finite(x[[1]]))
+  boot_vals <- fit_resample[finite_values]|>unlist()
+
+  boot_mean <- mean(boot_vals, na.rm=T) # this values *is not * the same are the actual psi at X% loss in hydraulic conductance
+
+  boot_se <- se(boot_vals)
+
+  boot_median <- median(boot_vals,na.rm = T)
+
+  #determine confidence intervals
+  deg_of_freedom = length(boot_vals)
+  t_score = qt(p=alpha/2, df=deg_of_freedom, lower.tail = F)
+
+  margin_error <- t_score*boot_se
+
+  conf.low <- px_est-margin_error # using the predicted pX value to make the error make sense
+  conf.high <- px_est+margin_error
+
+# save out of the results
+  output[[i]] <- structure(list(species=fit_temp$species,
+                                psi_PX = px_char,
+                                boot_mean=boot_mean,
+                                boot_median=boot_median,
+                                boot_se=boot_se,
+                                deg_of_freedom = deg_of_freedom,
+                                margin_error=margin_error,
+                                conf.low=conf.low,
+                                conf.high=conf.high))# class="data.frame"
+
+}
+
+if(n_fit==1) {
+  return(unlist(output, recursive = FALSE))
+} else{
+  return(output)
+}
+
+}
+
+#' Resample PX
+#' @details Resampling is done by sampling from a normal distribution based on the mean and standard deviation of the parameter
+#' @param fit Best fitting model containing best fit models, parameter estimates and their SDs
+#' @param px Choose what percent loss in K/gs you are solving for PX (e.g., P50, P80 etc)
+#' @param sims Number of simulated values to generate
+#' @param psi_max estimate px based on what value of psi
+#' @param seed Seed for reproducibility.
+#'
+#' @return Returns a list of simulations predicted PX values the length of the number `sims`.
+#'
+#' @importFrom stats rnorm
+#' @importFrom withr with_seed
+
+
+resamplePX <- function(fit,
+                 #model_type = character(),
+                 px=0.5, seed,
+                 sims=1000,
+                 psi_max = numeric()){
+
+  if(length(psi_max)<1){stop("Value for psi_max must be provided.")}
+
+  withr::local_seed(seed=seed)
+
+  psi_px <- vector("list", length = sims) #initialize list to store results
+  model_type <- fit$data.type
+
+  #check conditions
+  fx_with_param3 <- model_type%in%c("exp2", "log", "sig")
+
+  #define model parameters
+  A<-fit$A
+  B<-fit$B
+
+  #sd of parameter estimates
+  A.sd <- fit$sterrorA
+  B.sd <- fit$sterrorB
+
+  if(fx_with_param3==F){# linear and exponential
+
+    param_samples <- lapply(c(1:sims), #create X samples of paired values
+
+                            function(x) {
+                              lapply(1, function(y)
+                                c(
+                                  sample(rnorm(sims, A, A.sd), size = 1, replace = T),
+                                  #sample for A
+                                  sample(rnorm(sims, B, B.sd), size =
+                                           1, replace = T) #sample for B
+                                ))
+
+                            })
+
+  }else{#exponential2, logistic, and sigmoidal
+
+ # define the third parameter for models with 3 parameters...C or Xo
+    param_3<-fit$C
+    param_3.sd<-fit$sterrorC
+
+    param_samples <- lapply(c(1:sims), #create X samples of paired values
+
+                            function(x){
+
+                              lapply(1, function(y) c(sample(rnorm(sims, A, A.sd), size=1,replace=T),#sample for A
+                                                      sample(rnorm(sims, B, B.sd), size=1,replace=T), #sample for B
+                                                      sample(rnorm(sims, param_3, param_3.sd), size=1, replace=T)))#sample for Xo or C
+
+                            })
+
+  }
+
+  psi_px_boot <- psiPx(model_type = model_type)
+
+  if (fx_with_param3==T){
+
+    for(i in 1:sims){# this is a lot to look at!!! Only way to index this list of lists since unlist makes this unusable
+
+        psi_px[[i]] <- psi_px_boot(A=param_samples[[i]][[1]][1],
+                              B=param_samples[[i]][[1]][2],
+                              C=param_samples[[i]][[1]][3],
+                              px = px, max_cond_at = psi_max)$psi.px
+
+    }
+      }else{
+
+    for(i in 1:sims){
+
+      psi_px[[i]] <- psi_px_boot(A=param_samples[[i]][[1]][1],
+                              B=param_samples[[i]][[1]][2],
+                              px = px, max_cond_at= psi_max)$psi.px
+
+      }
+
+    }#end for loop
+return(psi_px)
+  }
+
+
+#' Standard Error
+#'
+#' @param x Input value(s)
+#' @param na.rm Remove NA values. Default is TRUE.
+#' @returns The standard error of the input value(s).
+#' @details na.rm=T by default because the predicted parameters estimate negative values and log(negative number)=NA
+#'
+se <- function(x, na.rm = T){
+  sd(x, na.rm = na.rm)/sqrt(length(x))
+}
+
+
+```
 

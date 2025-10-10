@@ -1,0 +1,1692 @@
+---
+title: "Bootstrap"
+output: html_document
+date: "2025-06-10"
+editor_options: 
+  chunk_output_type: console
+---
+
+##Notes
+
+The script uses a function called *mybootPX* which is adapted from Gavin's R package *hydrafit* for estimating parameters for functions of plant hydraulic vulnerability : https://github.com/brownegm/hydrafit
+
+*boot_vals* = distribution of all P50 values recalculated. 
+
+*boot_mean* = mean of bootstrap values, which can be biased by the distribution queue
+
+*boot_median* = median of bootstrap values (usually more robust).
+
+*boot_se* = standard error of bootstrap values, estimator uncertainty
+
+*margin_error* = t_score × boot_se, width of confidence interval (95%).
+
+*conf.low / conf.high* = confidence interval around the "observed value", value from the best fit model.
+
+
+#Library
+```{r}
+#devtools::install_github("brownegm/hydrafit")
+#install.packages("here")
+knitr::opts_knit$set(root.dir = "C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data")
+
+library(hydrafit)
+library(ggplot2)
+library(agricolae)
+library(plyr)
+library(multcomp)
+library(corrplot)
+library(factoextra)
+library(readxl)
+library(dplyr)
+library(ggpubr)
+library(cowplot)
+library(tidyr)
+library(readr)
+library(stringr)
+```
+
+
+```{r}
+library(tibble)
+library(purrr)
+library(readr)
+library(FSA)
+
+result_path <- "C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results"
+```
+
+
+# Functions
+
+## converstion
+
+```{r}
+se <- function(x, na.rm = T){
+  sd(x, na.rm = na.rm)/sqrt(length(x))
+}
+
+convert_fit_to_gavin <- function(fit) {
+  list(
+    species = fit$Species,
+    data.type = fit$model,
+    A = fit$A,
+    B = fit$B,
+    C = fit$C,
+    D = NA,  # Your fits have no D parameter or you can use fit$D.sd if relevant
+    loglikeli = fit$loglikeli,
+    rsq = fit$rsq,
+    slope = fit$slope,
+    AIC = fit$AIC,
+    AICcorr = fit$AICcorr,
+    sterrorA = fit$sterrorA,
+    sterrorB = fit$sterrorB,
+    sterrorC = fit$sterrorC,
+    sterrorD = fit$sterrorD,  # or NA if not relevant
+    N = fit$N,
+    maxCond = fit$Kmax,
+    psi_k20 = fit$psi_kleaf20,
+    psi_k50 = fit$psi_kleaf50,
+    psi_k80 = fit$psi_kleaf80,
+    psi_k95 = fit$psi_kleaf95,
+    max_cond_at0.1 = fit$Kmax,
+    psi_k20_at0.1 = fit$psi_kleaf20,
+    psi_k50_at0.1 = fit$psi_kleaf50,
+    psi_k80_at0.1 = fit$psi_kleaf80,
+    psi_k95_at0.1 = fit$psi_kleaf95,
+    plot = NULL,
+    models_within_2AIC = NA,  
+    attr_mod_type = fit$model,
+    attr_fit_list = FALSE
+  )
+}
+
+convert_fit_to_gavin_K <- function(fit) {
+  list(
+    species = fit$Species,
+    data.type = fit$model,
+    A = fit$A,
+    B = fit$B,
+    C = fit$C,
+    D = NA,  # Your fits have no D parameter or you can use fit$D.sd if relevant
+    loglikeli = fit$loglikeli,
+    rsq = fit$rsq,
+    slope = fit$slope,
+    AIC = fit$AIC,
+    AICcorr = fit$AICcorr,
+    sterrorA = fit$sterrorA,
+    sterrorB = fit$sterrorB,
+    sterrorC = fit$sterrorC,
+    sterrorD = fit$sterrorD,  # or NA if not relevant
+    N = fit$N,
+    maxCond = fit$Kmax_at_0.1MPa,
+    psi_k20 = fit$psi_kleaf20,
+    psi_k50 = fit$psi_kleaf50,
+    psi_k80 = fit$psi_kleaf80,
+    psi_k95 = fit$psi_kleaf95,
+    max_cond_at0.1 = fit$Kmax_at_0.1MPa,
+    psi_k20_at0.1 = fit$psi_kleaf20,
+    psi_k50_at0.1 = fit$psi_kleaf50,
+    psi_k80_at0.1 = fit$psi_kleaf80,
+    psi_k95_at0.1 = fit$psi_kleaf95,
+    plot = NULL,
+    models_within_2AIC = NA,  
+    attr_mod_type = fit$model,
+    attr_fit_list = FALSE
+  )
+}
+
+convert_to_list_of_lists <- function(fit) {
+  n <- length(fit$species)
+  fields <- names(fit)
+  
+  out <- vector("list", n)
+  
+  for (i in seq_len(n)) {
+    sp_list <- list()
+    for (field in fields) {
+      # If the field is NULL (e.g., $A is NULL), assign NULL
+      if (is.null(fit[[field]])) {
+        sp_list[[field]] <- NULL
+      } else if (length(fit[[field]]) == n) {
+        # If it's a vector with length == n, pull the ith value
+        sp_list[[field]] <- fit[[field]][i]
+      } else {
+        # Otherwise (e.g., scalar or NA), just assign it as-is
+        sp_list[[field]] <- fit[[field]]
+      }
+    }
+    out[[i]] <- sp_list
+  }
+  
+  # Optionally, preserve attributes
+  attr(out, "fit.list") <- TRUE
+  attr(out, "mod.type") <- fit$attr_mod_type
+  
+  return(out)
+}
+
+
+convert_to_fit_structure <- function(model) {
+      # Convert internal fields to attributes
+      if (!is.null(model$attr_mod_type)) {
+          attr(model, "mod.type") <- model$attr_mod_type
+          model$attr_mod_type <- NULL
+      }
+      if (!is.null(model$attr_fit_list)) {
+          attr(model, "fit.list") <- model$attr_fit_list
+          model$attr_fit_list <- NULL
+      }
+      # Add missing plot field if not present
+      if (!"plot" %in% names(model)) {
+          model$plot <- NULL
+      }
+      # Add models_within_2AIC if missing
+      if (!"models_within_2AIC" %in% names(model)) {
+          model$models_within_2AIC <- NA
+      }
+      return(model)
+  }
+```
+
+## bootstrap according to Marvin's function
+
+```{r}
+mybootPX <- function(fit, px = 0.5, psi_max, seed = 123, sims = 1000){
+
+  fit.list <- attr(fit, "fit.list")
+
+  if(fit.list){ 
+    n_fit <- length(fit) #if the input is a list of models, checks the number of models and extract each model's type
+    model.test <- lapply(seq_len(n_fit), \(x) fit[[x]]$data.type) %in% c("exp2", "log", "sig", "Linear", "exp")
+  }else{
+    n_fit <- 1 #if the input is 1 model, check that one
+    model.test <- fit$data.type %in% c("exp2", "log", "sig", "Linear", "exp")
+  }
+
+  #check if the model type(s) is/are valid
+  if (any(!model.test)) {
+    stop("Bootstrap: Model type(s) must be one of the following: exp2, log, sig, Linear, exp")
+  }
+
+  # #check if the percent loss in conductance is valid
+  # if(px>1|px<0){
+  #   stop("Percent loss in conductance must be between 0 and 1")
+  # }
+
+  #check if the psi_max value is valid
+  if(psi_max<0){
+    stop("Value for psi_max must be greater than 0")
+  }
+
+
+px_char <- paste0(as.character(px), "@", as.character(psi_max))
+
+alpha = 0.05
+
+output <- vector(mode = "list", length = n_fit) #prepares list to store result for each fit
+
+for(i in seq_len(n_fit)){
+
+  if(fit.list){
+    fit_temp <- fit[[i]]
+  }else{
+    fit_temp <- fit
+  }
+
+  px_est <- switch(px_char, #If the user asked for P50 at 0 MPa, grab psi_k50. If they asked for P50 at 0.1 MPa, grab psi_k50_at0.1. Same idea for P80.”
+                   "0.5@"=fit_temp$psi_k50,
+                   "0.8@"=fit_temp$psi_k80,
+                   "0.5@0.1"=fit_temp$psi_k50_at0.1,
+                   "0.8@0.1"=fit_temp$psi_k80_at0.1) #Loops over fits and pulls the “observed” (non-bootstrapped) PX estimate.
+
+  fit_resample <- resamplePX(fit = fit_temp, sims = sims,
+                        px = px, psi_max = psi_max, seed = seed) #the actual bootstrap
+
+  finite_values <- sapply(fit_resample, function(x) is.finite(x[[1]])) #Filters out non-finite values (NaN, Inf).
+  
+  boot_vals <- fit_resample[finite_values]|>unlist() 
+
+  
+  #bootstrap stats
+  boot_mean <- mean(boot_vals, na.rm=T) # this values *is not * the same are the actual psi at X% loss in hydraulic conductance
+  boot_se <- se(boot_vals)
+  boot_median <- median(boot_vals,na.rm = T)
+
+  #determine confidence intervals
+  deg_of_freedom = length(boot_vals)
+  t_score = qt(p=alpha/2, df=deg_of_freedom, lower.tail = F) #Uses Student’s t distribution to calculate margin of error
+  margin_error <- t_score*boot_se
+
+ conf.low <- px_est-margin_error # using the predicted pX value to make the error make sense, Builds confidence interval around the model-estimated px_est (not the bootstrap mean!)
+  conf.high <- px_est+margin_error 
+
+    
+# save out of the results
+  output[[i]] <- structure(list(species=fit_temp$species,
+                                psi_PX = px_char,
+                                boot_vals = boot_vals,
+                                boot_mean=boot_mean,
+                                boot_median=boot_median,
+                                boot_se=boot_se,
+                                deg_of_freedom = deg_of_freedom,
+                                margin_error=margin_error,
+                                px_est = px_est,
+                                conf.low=conf.low,
+                                conf.high=conf.high))# class="data.frame"
+
+}
+
+if(n_fit==1) {
+  return(unlist(output, recursive = FALSE))
+} else{
+  return(output)
+}
+
+}
+
+#' Resample PX
+#' @details Resampling is done by sampling from a normal distribution based on the mean and standard deviation of the parameter
+#' @param fit Best fitting model containing best fit models, parameter estimates and their SDs
+#' @param px Choose what percent loss in K/gs you are solving for PX (e.g., P50, P80 etc)
+#' @param sims Number of simulated values to generate
+#' @param psi_max estimate px based on what value of psi
+#' @param seed Seed for reproducibility.
+#'
+#' @return Returns a list of simulations predicted PX values the length of the number `sims`.
+#'
+#' @importFrom stats rnorm
+#' @importFrom withr with_seed
+
+
+resamplePX <- function(fit,
+                 #model_type = character(),
+                 px=0.5, seed,
+                 sims=1000,
+                 psi_max = numeric()){
+
+  if(length(psi_max)<1){stop("Value for psi_max must be provided.")}
+
+  withr::local_seed(seed=seed)
+
+  psi_px <- vector("list", length = sims) #initialize list to store results
+  model_type <- fit$data.type
+
+  #check conditions
+  fx_with_param3 <- model_type%in%c("exp2", "log", "sig")
+
+  #define model parameters
+  A<-fit$A
+  B<-fit$B
+
+  #sd of parameter estimates
+  A.sd <- fit$sterrorA
+  B.sd <- fit$sterrorB
+
+  if(fx_with_param3==F){# linear and exponential
+
+    param_samples <- lapply(c(1:sims), #create X samples of paired values
+
+                            function(x) {
+                              lapply(1, function(y)
+                                c(
+                                  sample(rnorm(sims, A, A.sd), size = 1, replace = T),
+                                  #sample for A
+                                  sample(rnorm(sims, B, B.sd), size =
+                                           1, replace = T) #sample for B
+                                ))
+
+                            })
+
+  }else{#exponential2, logistic, and sigmoidal
+
+ # define the third parameter for models with 3 parameters...C or Xo
+    param_3<-fit$C
+    param_3.sd<-fit$sterrorC
+
+    param_samples <- lapply(c(1:sims), #create X samples of paired values
+
+                            function(x){
+
+                              lapply(1, function(y) c(sample(rnorm(sims, A, A.sd), size=1,replace=T),#sample for A
+                                                      sample(rnorm(sims, B, B.sd), size=1,replace=T), #sample for B
+                                                      sample(rnorm(sims, param_3, param_3.sd), size=1, replace=T)))#sample for Xo or C
+
+                            })
+
+  }
+
+  psi_px_boot <- psiPx(model_type = model_type)
+
+  if (fx_with_param3==T){
+
+    for(i in 1:sims){# this is a lot to look at!!! Only way to index this list of lists since unlist makes this unusable
+
+        psi_px[[i]] <- psi_px_boot(A=param_samples[[i]][[1]][1],
+                              B=param_samples[[i]][[1]][2],
+                              C=param_samples[[i]][[1]][3],
+                              px = px, max_cond_at = psi_max)$psi.px
+
+    }
+      }else{
+
+    for(i in 1:sims){
+
+      psi_px[[i]] <- psi_px_boot(A=param_samples[[i]][[1]][1],
+                              B=param_samples[[i]][[1]][2],
+                              px = px, max_cond_at= psi_max)$psi.px
+
+      }
+
+    }#end for loop
+return(psi_px)
+  }
+
+
+#' Standard Error
+#'
+#' @param x Input value(s)
+#' @param na.rm Remove NA values. Default is TRUE.
+#' @returns The standard error of the input value(s).
+#' @details na.rm=T by default because the predicted parameters estimate negative values and log(negative number)=NA
+#'
+
+```
+
+
+## Marion's attempt for 0.1 Mpa bootstrap
+```{r}
+## ------------------------- helpers -------------------------
+
+# compute Kmax at a reference psi (e.g., 0.1 MPa) by model
+.kmax_at_ref <- function(model_type, A, B, C = NA_real_, psi_ref = 0.1) {
+  switch(model_type,
+    "log"    = A / (1 + (psi_ref / C)^B),
+    "exp"    = A * exp(-(B * psi_ref)),
+    "sig"    = A / (1 + exp(-(-psi_ref - C) / B)),
+    "exp2"   = C + A * exp(-B * psi_ref),
+    "Linear" = A + B * psi_ref,
+    NA_real_
+  )
+}
+
+# compute P50 (psi) at 0.1*Kmax using your formulas
+.p50_at_ref <- function(model_type, A, B, C = NA_real_, psi_ref = 0.1) {
+  Kmax01 <- .kmax_at_ref(model_type, A, B, C, psi_ref)
+
+  # guard against non-sensical inputs (negatives, zeros, logs)
+  if (!is.finite(Kmax01) || Kmax01 <= 0 || !is.finite(A)) return(NA_real_)
+
+  out <- switch(model_type,
+    # logistic:  C * (A/(Kmax0.1 * 0.5) - 1)^(1/B)
+    "log"  = {
+      base <- A / (Kmax01 * 0.5) - 1
+      if (!is.finite(base) || base <= 0) return(NA_real_)
+      C * (base)^(1 / B)
+    },
+
+    # exponential: (-1/B) * ln((Kmax0.1*0.5)/A)
+    "exp"  = {
+      ratio <- (Kmax01 * 0.5) / A
+      if (!is.finite(ratio) || ratio <= 0) return(NA_real_)
+      (-1 / B) * log(ratio)
+    },
+
+    # sigmoidal: -B * ln(A/(Kmax0.1*0.5) - 1) + C
+    "sig"  = {
+      base <- A / (Kmax01 * 0.5) - 1
+      if (!is.finite(base) || base <= 0) return(NA_real_)
+      -B * log(base) + C
+    },
+
+    # exp2: (-1/B) * ln(((Kmax0.1*0.5) - C) / A)
+    "exp2" = {
+      num <- (Kmax01 * 0.5) - C
+      denom <- A
+      ratio <- num / denom
+      if (!is.finite(ratio) || ratio <= 0) return(NA_real_)
+      (-1 / B) * log(ratio)
+    },
+
+    # Linear: (Kmax0.1/2 - A) / B
+    "Linear" = {
+      denom <- B
+      if (!is.finite(denom) || denom == 0) return(NA_real_)
+      (Kmax01 / 2 - A) / B
+    },
+
+    NA_real_
+  )
+
+  if (!is.finite(out)) NA_real_ else out
+}
+
+# draw bootstrap parameter sets and STORE them (A,B[,C])
+resamplePX_store <- function(fit, sims = 1000, seed = 123) {
+  withr::local_seed(seed)
+
+  model_type <- fit$data.type
+  A  <- fit$A;  A.sd  <- fit$sterrorA
+  B  <- fit$B;  B.sd  <- fit$sterrorB
+
+  hasC <- model_type %in% c("exp2", "log", "sig")
+
+  if (hasC) {
+    C  <- fit$C;  C.sd  <- fit$sterrorC
+    params <- data.frame(
+      A = rnorm(sims, A, A.sd),
+      B = rnorm(sims, B, B.sd),
+      C = rnorm(sims, C, C.sd)
+    )
+  } else {
+    params <- data.frame(
+      A = rnorm(sims, A, A.sd),
+      B = rnorm(sims, B, B.sd)
+    )
+    params$C <- NA_real_
+  }
+
+  params$model_type <- model_type
+  params
+}
+
+## ------------------------- main bootstrap -------------------------
+
+# Recalculate P(X) at reference Kmax (default P50 @ 0.1 MPa Kmax)
+# px is kept for API compatibility, but P50 is the only case supported by the formulas you provided.
+mybootPX <- function(fit, px = 0.5, psi_max = 0.1, seed = 123, sims = 1000, alpha = 0.05) {
+
+  # support single fit or list of fits (fit.list pattern in your objects)
+  fit.list <- isTRUE(attr(fit, "fit.list"))
+  fits <- if (fit.list) fit else list(fit)
+
+  out <- vector("list", length(fits))
+
+  for (i in seq_along(fits)) {
+    f <- fits[[i]]
+
+    # model guard
+    if (!f$data.type %in% c("exp2", "log", "sig", "Linear", "exp")) {
+      stop("Model type must be one of: exp2, log, sig, Linear, exp")
+    }
+    if (px != 0.5) {
+      warning("Only P50@psi_max is supported by the provided closed-form formulas; proceeding with P50.")
+    }
+
+    # 1) draw and STORE parameter sets
+    params <- resamplePX_store(f = f, sims = sims, seed = seed)
+
+    # 2) recompute P50@psi_max for each bootstrap set using your formulas
+        # 2) recompute P50@psi_max for each bootstrap set using your formulas
+    boot_vals <- apply(params, 1, function(r) {
+      .p50_at_ref(
+        model_type = as.character(r[["model_type"]]),
+        A = as.numeric(r[["A"]]),
+        B = as.numeric(r[["B"]]),
+        C = as.numeric(r[["C"]]),
+        psi_ref = psi_max
+      )
+    })
+
+
+    #boot_vals <- boot_vals[is.finite(boot_vals)]
+
+  boot_vals <- boot_vals[!is.na(boot_vals) & boot_vals >= 0] # Drop artifacts (negative or NA values)
+  boot_vals <- boot_vals[boot_vals < 20] # Drop artifacts
+    
+    # 3) distribution summaries + percentile CIs
+    boot_mean   <- mean(boot_vals)
+    boot_median <- median(boot_vals)
+    conf.low <- quantile(boot_vals, probs = 0.025, na.rm = TRUE)
+    conf.high <- quantile(boot_vals, probs = 0.975, na.rm = TRUE)
+  
+# px_est <- .p50_at_ref(
+#   model_type = f$data.type,
+#   A = f$A,
+#   B = f$B,
+#   C = if (!is.null(f$C)) f$C else NA_real_,
+#   psi_ref = psi_max
+# )
+
+# 3) distribution summaries
+# boot_mean   <- mean(boot_vals, na.rm = TRUE) 
+# boot_se     <- se(boot_vals)
+# boot_median <- median(boot_vals, na.rm = TRUE)
+# deg_of_freedom <- length(boot_vals)
+# t_score     <- qt(p = alpha/2, df = deg_of_freedom, lower.tail = FALSE) 
+# margin_error <- t_score * boot_se
+
+# CI around *px_est* (not the bootstrap mean)
+# conf.low  <- px_est - margin_error
+# conf.high <- px_est + margin_error
+
+
+    out[[i]] <- list(
+      species    = f$species,
+      psi_PX     = paste0("P", px*100, "@", psi_max),
+      model      = f$data.type,
+      params     = params,          # << stored bootstrap parameter sets
+      boot_vals  = boot_vals,       # distribution of P50@psi_max
+      boot_mean  = boot_mean,
+     # px_est     = px_est,
+      boot_median= boot_median,
+      conf.low   = conf.low,
+      conf.high  = conf.high,
+      ci_method  = "percentile"
+    )
+  }
+
+  if (fit.list) out else out[[1]]
+}
+
+```
+
+
+## Marivin's second bootstrap function
+
+```{r}
+#' Tool for estimating confidence intervals for percent loss in conductance.
+#'
+#' @details This function takes the best fit model chosen by `fx_select()` and estimates confidence intervals
+#'  by re-sampling model parameters from a normal distribution based on mean and standard deviation. Note that
+#'  the standard deviation used here is estimated as the square root of a hessian matrix created when the anneal
+#'  functions tests for the best fit model.
+#'
+#'\itemize{
+#'    \item Annealing function info: \url{https://tinyurl.com/annealingsim}
+#'    \item Github page: \url{https://github.com/cran/likelihood/blob/master/R/anneal.R}. See lines 742-797 specifically within the code.
+#' }
+
+#' @param fit Fit object(s) from `fit_vuln_curve()`
+#' @param px Percent loss in conductance. Default is 0.5.
+#' @param psi_max Value of psi at which to estimate maximum conductance.
+#' @param seed Value for reproducibility
+#' @param sims Number of simulations to run. Default is 1000.
+#' @param pairwise Perform pairwise test among species px values.
+#' @param margin Choice of method to estimate margin of error. Options are "tdist" for t-distribution reconstruction or "quantile" for quantile based confidence intervals. Quantile is recommended.
+#' @importFrom stats qt sd median
+#' @export bootPX
+#'
+mybootPX <- function(fit,
+                   px = 0.5,
+                   psi_max,
+                   seed = 123,
+                   sims = 1000,
+                   pairwise = F,
+                   margin = c("tdist", "quantile")) {
+
+  # get margin method
+  if (missing(margin)) {
+    warning("No margin of error method provided. Defaulting to t-distribution reconstruction.")
+    margin <- "tdist"
+  } else{
+    margin <- match.arg(margin)
+  }
+  # manage fit list vs single fit
+  fit.list <- attr(fit, "fit.list")
+
+  if (fit.list) {
+    n_fit <- length(fit)
+    model.test <- lapply(seq_len(n_fit), \(x) attr(fit[[x]], "mod.type")) %in% c("exp2", "log", "sig", "Linear", "exp")
+  } else{
+    n_fit <- 1
+    model.test <- attr(fit, "mod.type") %in% c("exp2", "log", "sig", "Linear", "exp")
+  }
+
+  #check if the model type(s) is/are valid
+  if (any(!model.test)) {
+    print(model.test)
+    stop("Bootstrap: Model type(s) must be one of the following: exp2, log, sig, Linear, exp")
+  }
+
+  #check if the percent loss in conductance is valid
+  if (px > 1 | px < 0) {
+    stop("Percent loss in conductance must be between 0 and 1")
+  }
+
+  #check if the psi_max value is valid
+  if (psi_max < 0) {
+    stop("Value for psi_max must be greater than 0")
+  }
+
+  px_char <- paste0(as.character(px), "@", as.character(psi_max))
+
+  alpha = 0.05
+
+  output <- vector(mode = "list", length = n_fit)
+
+  for (i in seq_len(n_fit)) {
+    if (fit.list) {
+      fit_temp <- fit[[i]]
+    } else{
+      fit_temp <- fit
+    }
+
+    px_est <- switch(
+      px_char,
+      "0.5@" = fit_temp$psi_k50,
+      "0.8@" = fit_temp$psi_k80,
+      "0.5@0.1" = fit_temp$psi_k50_at0.1,
+      "0.8@0.1" = fit_temp$psi_k80_at0.1
+    )
+
+    fit_resample <- resamplePX(
+      fit = fit_temp,
+      sims = sims,
+      px = px,
+      psi_max = psi_max,
+      seed = seed
+    )
+
+    finite_values <- sapply(fit_resample$psi_px, function(x) is.finite(x[[1]]))
+
+    boot_vals <- fit_resample$psi_px[finite_values] |> unlist()
+
+    boot_mean <- mean(boot_vals, na.rm = T)
+
+    boot_se <- se(boot_vals)
+
+    boot_median <- median(boot_vals, na.rm = T)
+
+    #determine confidence intervals
+    if(margin == "quantile"){
+
+      conf.int <- quantile(boot_vals,
+                           probs = c(alpha/2, 1 - (alpha/2)),
+                           na.rm = T)
+
+      conf.low <- conf.int[[1]]
+      conf.high <- conf.int[[2]]
+      deg_of_freedom = (length(boot_vals) - 1)
+      margin_error <- (conf.high - conf.low) / 2
+
+    }else if (margin == "tdist"){
+      # t-distribution method
+    deg_of_freedom = length(boot_vals)
+    t_score = qt(p = alpha / 2,
+                 df = deg_of_freedom,
+                 lower.tail = F)
+
+    margin_error <- t_score * boot_se
+
+    conf.low <- px_est - margin_error # using the predicted pX value to make the error make sense
+    conf.high <- px_est + margin_error
+    }
+
+    # save out of the results
+    output[[i]] <- structure(
+      list(
+        species = fit_temp$species,
+        psi_PX = px_char,
+        boot_mean = boot_mean,
+        boot_median = boot_median,
+        boot_se = boot_se,
+        deg_of_freedom = deg_of_freedom,
+        margin_error = margin_error,
+        conf.low = conf.low,
+        conf.high = conf.high,
+        bootvals = boot_vals,
+        model_params = fit_resample$model_params
+      ))
+  }
+
+  if (pairwise == T) {
+    # if pairwise comparisons are requested, then run them among the fits
+    pw_out <- compare_sp_boot(output, conf_level = 0.95)
+  }
+
+  if (n_fit == 1) {
+    return(structure(
+      unlist(output, recursive = FALSE),
+      pairwise_comp = if (pairwise == T)
+        pw_out
+      else
+        NA,
+      margin = margin,
+      class = c("boot_list", "list")
+    ))
+  } else{
+    return(structure(
+      output,
+      pairwise_comp = if (pairwise == T)
+        pw_out
+      else
+        NA,
+      margin = margin,
+      class = c("boot_list", "list")
+    ))
+  }
+
+}
+
+#' Resample PX
+#' @details Resampling is done by sampling from a normal distribution based on the mean and standard deviation of the parameter
+#' @param fit Best fitting model containing best fit models, parameter estimates and their SDs
+#' @param px Choose what percent loss in K/gs you are solving for PX (e.g., P50, P80 etc)
+#' @param sims Number of simulated values to generate
+#' @param psi_max estimate px based on what value of psi
+#' @param seed Seed for reproducibility.
+#'
+#' @return Returns a list of simulations predicted PX values the length of the number `sims`.
+#'
+#' @importFrom stats rnorm
+#' @importFrom withr with_seed
+
+
+resamplePX <- function(fit,
+                       #model_type = character(),
+                       px = 0.5,
+                       seed,
+                       sims = 1000,
+                       psi_max = numeric()) {
+  if (length(psi_max) < 1) {
+    stop("Value for psi_max must be provided.")
+  }
+
+  withr::local_seed(seed = seed)
+
+  psi_px <- vector("list", length = sims) #initialize list to store results
+  model_type <- fit$data.type
+
+  #check conditions
+  fx_with_param3 <- model_type %in% c("exp2", "log", "sig")
+
+  #define model parameters
+  A <- fit$A
+  B <- fit$B
+
+  #sd of parameter estimates
+  A.sd <- fit$sterrorA
+  B.sd <- fit$sterrorB
+
+  if (fx_with_param3 == F) {
+    # linear and exponential
+
+    param_samples <- lapply(
+      c(1:sims),
+      #create X samples of paired values
+
+      function(x) {
+        lapply(1, function(y)
+          c(
+            sample(
+              rnorm(sims, A, A.sd),
+              size = 1,
+              replace = T
+            ),
+            #sample for A
+            sample(
+              rnorm(sims, B, B.sd),
+              size =
+                1,
+              replace = T
+            ) #sample for B
+          ))
+
+      }
+    )
+
+  } else{
+    #exponential2, logistic, and sigmoidal
+
+    # define the third parameter for models with 3 parameters...C or Xo
+    param_3 <- fit$C
+    param_3.sd <- fit$sterrorC
+
+    param_samples <- lapply(
+      c(1:sims),
+      #create X samples of paired values
+
+      function(x) {
+        lapply(1, function(y)
+          c(
+            sample(
+              rnorm(sims, A, A.sd),
+              size = 1,
+              replace = T
+            ),
+            #sample for A
+            sample(
+              rnorm(sims, B, B.sd),
+              size = 1,
+              replace = T
+            ),
+            #sample for B
+            sample(
+              rnorm(sims, param_3, param_3.sd),
+              size = 1,
+              replace = T
+            )
+          ))#sample for Xo or C
+
+      }
+    )
+
+  }
+
+  psi_px_boot <- psiPx(model_type = model_type)
+
+  if (fx_with_param3 == T) {
+    for (i in 1:sims) {
+      # this is a lot to look at!!!
+      # Only way to index this list of lists since unlist makes this unusable
+      # to be updated in future update
+
+      psi_px[[i]] <- psi_px_boot(
+        A = param_samples[[i]][[1]][1],
+        B = param_samples[[i]][[1]][2],
+        C = param_samples[[i]][[1]][3],
+        px = px,
+        max_cond_at = psi_max
+      )$psi.px
+
+    }
+  } else{
+    for (i in 1:sims) {
+      psi_px[[i]] <- psi_px_boot(
+        A = param_samples[[i]][[1]][1],
+        B = param_samples[[i]][[1]][2],
+        px = px,
+        max_cond_at = psi_max
+      )$psi.px
+
+    }
+
+  }#end for loop
+
+  psi_px_out <- structure(list(psi_px = psi_px,
+                               model_params = param_samples))
+
+  return(psi_px_out)
+}
+
+
+#' Standard Error
+#'
+#' @param x Input value(s)
+#' @param na.rm Remove NA values. Default is TRUE.
+#' @returns The standard error of the input value(s).
+#' @details na.rm=T by default because the predicted parameters estimate negative values and log(negative number)=NA
+#'
+se <- function(x, na.rm = T) {
+  sd(x, na.rm = na.rm) / sqrt(length(x))
+}
+
+
+#' Print method for lists of bootstrap results
+#'
+#' @param x Object of class 'boot_list'
+#' @param ... not used
+#'
+#' @returns Bootstrap results
+#' @export
+
+print.boot_list <- function(x, ...) {
+  if (length(x) > 1) {
+    for (i in 1:length(x)) {
+      x_i <- x[[i]]
+      cat("Bootstrap Results:\n")
+      cat("----------------------------------------------------\n")
+      cat("Species:", x_i$species, "\n")
+      cat("PX:", x_i$psi_PX, "\n")
+      cat("----------------------------------------------------\n")
+      cat("Mean predicted PX:", x_i$boot_mean |> round(3), "\n")
+      cat("Median predicted PX:", x_i$boot_median |> round(3), "\n")
+      cat("Standard Error predicted PX:",
+          x_i$boot_se |> round(3),
+          "\n")
+      cat("-----------------Confidence Interval----------------\n")
+      cat("Low:", x_i$conf.low |> round(3), "\n")
+      cat("High:", x_i$conf.high |> round(3), "\n")
+      cat("\n\n")
+    }
+  } else {
+    cat("Bootstrap Results:\n")
+    cat("----------------------------------------------------\n")
+    cat("Species:", x$species, "\n")
+    cat("PX:", x$psi_PX, "\n")
+    cat("----------------------------------------------------\n")
+    cat("Mean predicted PX:", x$boot_mean |> round(3), "\n")
+    cat("Median predicted PX:", x$boot_median |> round(3), "\n")
+    cat("Standard Error predicted PX:", x$boot_se |> round(3), "\n")
+    cat("-----------------Confidence Interval----------------\n")
+    cat("Low:", x$conf.low |> round(3), "\n")
+    cat("High:", x$conf.high |> round(3), "\n")
+    cat("----------------------------------------------------\n")
+  }
+}
+
+
+#' Summary Method for lists of bootstrap results
+#'
+#' @description Summarizes the bootstrap results for a list of bootstrapped models. This summary only applies to intergroup (e.g., among species) comparisons.
+#' @param object Object of class 'boot_list'
+#' @param ... not used
+#'
+#' @returns A summary of the bootstrap results, including species names, and pairwise comparisons.
+#' @export
+
+summary.boot_list <- function(object, ...) {
+  if (!inherits(object, "boot_list")) {
+    stop("Input must be of class 'boot_list'.")
+  }
+
+  # Get species names
+  species_names <- sapply(object, \(boot) boot$species)
+  species_names <- paste(species_names, collapse = ", ")
+
+  # What PX Value was bootstrapped?
+  px <- unique(sapply(object, \(boot) boot$psi_PX))
+
+  # Print summary of bootstrap results
+  cat("Bootstrap Pairwise Summary:\n")
+  cat("----------------------------------------------------\n")
+  cat("Species:", species_names, "\n")
+  cat("PX:", px, "\n")
+  cat("----------------------------------------------------\n")
+  print(attr(object, "pairwise_comp"))
+
+}
+```
+
+
+#Assimilation - A
+```{r}
+result_path <- "C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results"
+
+avsa_A_sig <-   read_excel(file.path(result_path, "A", "AIC_A.xlsx")) %>%
+  filter(Species == 'Avsa') %>%
+  filter(model == 'Sigmoidal') 
+
+hovu_A_sig <-   read_excel(file.path(result_path, "A", "AIC_A.xlsx")) %>%
+  filter(Species == 'Hovu') %>%
+  filter(model == 'Sigmoidal') 
+
+trae_A_sig <-  read_excel(file.path(result_path, "A", "AIC_A.xlsx")) %>%
+  filter(Species == 'Trae') %>%
+filter(model == 'Sigmoidal') 
+
+pegl_A_sig <-  read_excel(file.path(result_path, "A", "AIC_A.xlsx")) %>%
+  filter(Species == 'Pegl') %>%
+filter(model == 'Sigmoidal') 
+
+zema_A_sig <-  read_excel(file.path(result_path, "A", "AIC_A.xlsx")) %>%
+  filter(Species == 'Zema') %>%
+  filter(model == 'Sigmoidal') 
+
+chga_A_sig <-   read_excel(file.path(result_path, "A", "AIC_A.xlsx")) %>%
+  filter(Species == 'Chga') %>%
+  filter(model == 'Sigmoidal') 
+
+mod_bestfit_temp<-rbind(avsa_A_sig, hovu_A_sig, trae_A_sig, chga_A_sig, pegl_A_sig, zema_A_sig)
+
+mod_bestfit_temp <- mod_bestfit_temp %>%
+  mutate(
+    sterrorA = as.numeric(sterrorA),
+    sterrorB = as.numeric(sterrorB),
+    sterrorC = as.numeric(sterrorC),
+    sterrorD = as.numeric(sterrorD) 
+  )
+
+mod_bestfit_temp <- mod_bestfit_temp %>%
+  mutate(
+    model = case_when(
+      str_detect(str_to_lower(model), "sig") ~ "sig",
+      str_detect(str_to_lower(model), "log") ~ "log",
+      str_detect(str_to_lower(model), "exponential2") ~ "exp2",
+      str_detect(str_to_lower(model), "exponential") ~ "exp",
+      str_detect(str_to_lower(model), "linear") ~ "Linear",
+      TRUE ~ model))
+
+convert1 <- convert_fit_to_gavin_K(mod_bestfit_temp)
+
+convert2 <- convert_to_list_of_lists(convert1)
+
+avsa_fit <- convert_to_fit_structure(convert2[[1]])
+hovu_fit <- convert_to_fit_structure(convert2[[2]])
+trae_fit <- convert_to_fit_structure(convert2[[3]])
+chga_fit <- convert_to_fit_structure(convert2[[4]])
+pegl_fit <- convert_to_fit_structure(convert2[[5]])
+zema_fit <- convert_to_fit_structure(convert2[[6]])
+
+#Marion's 0.1 Mpa bootstrap lines
+# avsa_boot <- mybootPX(avsa_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+# hovu_boot <- mybootPX(hovu_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+# trae_boot <- mybootPX(trae_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+# chga_boot <- mybootPX(chga_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+# pegl_boot <- mybootPX(pegl_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+# zema_boot <- mybootPX(zema_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+
+#Gavin's bootstrap lines
+avsa_boot <- mybootPX(avsa_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+hovu_boot <- mybootPX(hovu_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+trae_boot <- mybootPX(trae_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+chga_boot <- mybootPX(chga_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+pegl_boot <- mybootPX(pegl_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+zema_boot <- mybootPX(zema_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+
+boot_list <- list(
+  avsa = avsa_boot,
+  hovu = hovu_boot,
+  trae = trae_boot,
+  chga = chga_boot,
+  pegl = pegl_boot,
+  zema = zema_boot
+)
+
+c3_species <- c("avsa", "hovu", "trae")
+c4_species <- c("chga", "pegl", "zema")
+
+
+boot_table_A <- purrr::map_dfr(names(boot_list), function(name) {
+  x <- boot_list[[name]]
+  tibble::tibble(
+    Species = x$species,
+    type = if (tolower(name) %in% c3_species) "C3" else "C4",
+    psi_PX = x$psi_PX,
+    boot_mean = x$boot_mean,
+    boot_median = x$boot_median,
+    boot_se = x$boot_se,
+    margin_error = x$margin_error,
+    px_est = x$px_est,
+    conf.low = x$conf.low,
+    conf.high = x$conf.high
+  )
+})
+
+boot_table_A
+
+#write.csv(x = boot_table_A, file = "../results/A/boottableA01.csv")
+
+write.csv(x = boot_table_A, file = "../results/A/boottableA.csv")
+```
+
+#Conductance - gs
+```{r}
+
+result_path <- "C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results"
+
+avsa_g_sig <-   read_excel(file.path(result_path, "gs", "AIC_gs.xlsx")) %>%
+    filter(Species == 'Avsa') %>% filter(model == 'Sigmoidal')
+
+hovu_g_sig <-    read_excel(file.path(result_path, "gs", "AIC_gs.xlsx")) %>%
+  filter(Species == 'Hovu') %>%  filter(model == 'Sigmoidal')
+
+trae_g_sig <-   read_excel(file.path(result_path, "gs", "AIC_gs.xlsx")) %>%
+  filter(Species == 'Trae') %>%  filter(model == 'Sigmoidal')
+  
+pegl_g_sig <-    read_excel(file.path(result_path, "gs", "AIC_gs.xlsx")) %>%
+  filter(Species == 'Pegl') %>% filter(model == 'Sigmoidal')
+  
+zema_g_sig <-  read_excel(file.path(result_path, "gs", "AIC_gs.xlsx")) %>% #but best fit model is linear for zema
+  filter(Species == 'Zema') %>% filter(model == 'Linear')
+  
+chga_g_sig <-   read_excel(file.path(result_path, "gs", "AIC_gs.xlsx")) %>%
+  filter(Species == 'Chga') %>%  filter(model == 'Sigmoidal')
+
+mod_bestfit_temp<-rbind(avsa_g_sig, hovu_g_sig, trae_g_sig, chga_g_sig, pegl_g_sig, zema_g_sig)
+
+mod_bestfit_temp <- mod_bestfit_temp %>%
+  mutate(
+    sterrorA = as.numeric(sterrorA),
+    sterrorB = as.numeric(sterrorB),
+    sterrorC = as.numeric(sterrorC),
+    sterrorD = as.numeric(sterrorD))
+
+mod_bestfit_temp <- mod_bestfit_temp %>%
+  mutate(
+    model = case_when(
+      str_detect(str_to_lower(model), "sig") ~ "sig",
+      str_detect(str_to_lower(model), "log") ~ "log",
+      str_detect(str_to_lower(model), "exponential2") ~ "exp2",
+      str_detect(str_to_lower(model), "exponential") ~ "exp",
+      str_detect(str_to_lower(model), "linear") ~ "Linear",
+      TRUE ~ model))
+
+convert1 <- convert_fit_to_gavin_K(mod_bestfit_temp)
+convert2 <- convert_to_list_of_lists(convert1)
+convert3 <- convert_to_fit_structure(convert2[[1]])
+
+avsa_fit <- convert_to_fit_structure(convert2[[1]])
+hovu_fit <- convert_to_fit_structure(convert2[[2]])
+trae_fit <- convert_to_fit_structure(convert2[[3]])
+chga_fit <- convert_to_fit_structure(convert2[[4]])
+pegl_fit <- convert_to_fit_structure(convert2[[5]])
+zema_fit <- convert_to_fit_structure(convert2[[6]])
+
+avsa_boot <- mybootPX(avsa_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+hovu_boot <- mybootPX(hovu_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+trae_boot <- mybootPX(trae_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+chga_boot <- mybootPX(chga_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+pegl_boot <- mybootPX(pegl_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+zema_boot <- mybootPX(zema_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+
+boot_list <- list(
+  avsa = avsa_boot,
+  hovu = hovu_boot,
+  trae = trae_boot,
+  chga = chga_boot,
+  pegl = pegl_boot,
+  zema = zema_boot
+)
+
+c3_species <- c("avsa", "hovu", "trae")
+c4_species <- c("chga", "pegl", "zema")
+
+boot_table_gs <- purrr::map_dfr(names(boot_list), function(name) {
+  x <- boot_list[[name]]
+  tibble::tibble(
+    Species = x$species,
+    type = if (tolower(name) %in% c3_species) "C3" else "C4",
+    psi_PX = x$psi_PX,
+    boot_mean = x$boot_mean,
+    boot_median = x$boot_median,
+    boot_se = x$boot_se,
+    margin_error = x$margin_error,
+    px_est = x$px_est,
+    conf.low = x$conf.low,
+    conf.high = x$conf.high
+  )
+})
+
+
+boot_table_gs
+
+write.csv(x = boot_table_gs, file = "../results/gs/boottablegs.csv")
+#write.csv(x = boot_table_gs, file = "../results/gs/boottablegs01.csv")
+```
+
+#Kleaf
+```{r}
+
+result_path <- "C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results"
+
+avsa_Kleaf_log <-  read_excel(file.path(result_path, "Kleaf", "AIC_Kleaf.xlsx")) %>% 
+  filter(Species == 'AVSA') %>% filter(model == 'Logistic')
+
+hovu_Kleaf_exp2 <-   read_excel(file.path(result_path, "Kleaf", "AIC_Kleaf.xlsx")) %>% 
+  filter(Species == 'HOVU') %>% filter(model == 'Exponential2') 
+
+trae_Kleaf_exp <-   read_excel(file.path(result_path, "Kleaf", "AIC_Kleaf.xlsx")) %>% 
+  filter(Species == 'TRAE') %>% filter(model == 'Exponential')
+
+pegl_Kleaf_log <-   read_excel(file.path(result_path, "Kleaf", "AIC_Kleaf.xlsx")) %>% 
+  filter(Species == 'PEGL') %>% filter(model == 'Logistic')
+
+zema_Kleaf_log <-   read_excel(file.path(result_path, "Kleaf", "AIC_Kleaf.xlsx")) %>%
+  filter(Species == 'ZEMA') %>% filter(model == 'Logistic')
+
+chga_Kleaf_log <-   read_excel(file.path(result_path, "Kleaf", "AIC_Kleaf.xlsx")) %>% 
+  filter(Species == 'CHGA') %>% filter(model == 'Logistic') 
+
+mod_bestfit_temp<-rbind(avsa_Kleaf_log, hovu_Kleaf_exp2, trae_Kleaf_exp, chga_Kleaf_log, pegl_Kleaf_log, zema_Kleaf_log)
+
+mod_bestfit_temp <- mod_bestfit_temp %>%
+  mutate(
+    sterrorA = as.numeric(sterrorA),
+    sterrorB = as.numeric(sterrorB),
+    sterrorC = as.numeric(sterrorC),
+    sterrorD = as.numeric(sterrorD),
+    D = as.numeric(D),
+    psi_kleaf95 = as.numeric(psi_kleaf95))
+
+mod_bestfit_temp <- mod_bestfit_temp %>%
+  mutate(
+    model = case_when(
+      str_detect(str_to_lower(model), "sig") ~ "sig",
+      str_detect(str_to_lower(model), "log") ~ "log",
+      str_detect(str_to_lower(model), "exponential2") ~ "exp2",
+      str_detect(str_to_lower(model), "exponential") ~ "exp",
+      str_detect(str_to_lower(model), "linear") ~ "Linear",
+      TRUE ~ model))
+
+convert1 <- convert_fit_to_gavin_K(mod_bestfit_temp)
+convert2 <- convert_to_list_of_lists(convert1)
+
+avsa_fit <- convert_to_fit_structure(convert2[[1]])
+hovu_fit <- convert_to_fit_structure(convert2[[2]])
+trae_fit <- convert_to_fit_structure(convert2[[3]])
+chga_fit <- convert_to_fit_structure(convert2[[4]])
+pegl_fit <- convert_to_fit_structure(convert2[[5]])
+zema_fit <- convert_to_fit_structure(convert2[[6]])
+
+avsa_boot <- mybootPX(avsa_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+hovu_boot <- mybootPX(hovu_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+trae_boot <- mybootPX(trae_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+chga_boot <- mybootPX(chga_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+pegl_boot <- mybootPX(pegl_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+zema_boot <- mybootPX(zema_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+
+boot_list <- list(
+  avsa = avsa_boot,
+  hovu = hovu_boot,
+  trae = trae_boot,
+  chga = chga_boot,
+  pegl = pegl_boot,
+  zema = zema_boot
+)
+
+c3_species <- c("avsa", "hovu", "trae")
+c4_species <- c("chga", "pegl", "zema")
+
+boot_table_Kleaf <- purrr::map_dfr(names(boot_list), function(name) {
+  x <- boot_list[[name]]
+  tibble::tibble(
+    Species = x$species,
+    type = if (tolower(name) %in% c3_species) "C3" else "C4",
+    psi_PX = x$psi_PX,
+    boot_mean = x$boot_mean,
+    boot_median = x$boot_median,
+    boot_se = x$boot_se,
+    margin_error = x$margin_error,
+    px_est = x$px_est,
+    conf.low = x$conf.low,
+    conf.high = x$conf.high
+  )
+})
+
+boot_table_Kleaf
+
+write.csv(x = boot_table_Kleaf, file = "../results/Kleaf/boottableKleaf.csv")
+#write.csv(x = boot_table_Kleaf, file = "../results/Kleaf/boottableKleaf01.csv")
+```
+
+#Kplant
+```{r}
+
+result_path <- "C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/KplantKroots_results"
+
+avsa_Kplant_exp <-  read_excel(file.path(result_path, "Kplant", "AIC_Kplant.xlsx")) %>% 
+  filter(Species == 'AVSA') %>% filter(model == 'Exponential')
+
+hovu_Kplant_exp <- read_excel(file.path(result_path, "Kplant", "AIC_Kplant.xlsx")) %>%
+  filter(Species == 'HOVU') %>% filter(model == 'Sigmoidal')
+
+trae_Kplant_sig <- read_excel(file.path(result_path, "Kplant", "AIC_Kplant.xlsx")) %>%
+  filter(Species == 'TRAE') %>%filter(model == 'Sigmoidal')
+  
+pegl_Kplant_exp <-   read_excel(file.path(result_path, "Kplant", "AIC_Kplant.xlsx"))%>%
+  filter(Species == 'PEGL') %>%filter(model == 'Exponential')
+
+zema_Kplant_exp <-   read_excel(file.path(result_path, "Kplant", "AIC_Kplant.xlsx")) %>%  filter(Species == 'ZEMA') %>% filter(model == 'Linear')
+
+chga_Kplant_exp <-    read_excel(file.path(result_path, "Kplant", "AIC_Kplant.xlsx")) %>%  filter(Species == 'CHGA')  %>%filter(model == 'Exponential')
+
+mod_bestfit_temp2<-rbind(avsa_Kplant_exp, hovu_Kplant_exp, trae_Kplant_sig, chga_Kplant_exp, pegl_Kplant_exp, zema_Kplant_exp)
+mod_bestfit_temp2
+colnames(mod_bestfit_temp2)
+
+mod_bestfit_temp2 <- mod_bestfit_temp2 %>%
+  mutate(
+    model = case_when(
+      str_detect(str_to_lower(model), "sig") ~ "sig",
+      str_detect(str_to_lower(model), "log") ~ "log",
+      str_detect(str_to_lower(model), "exp2") ~ "exp2",
+      str_detect(str_to_lower(model), "exponential2") ~ "exp2",
+      str_detect(str_to_lower(model), "exponential") ~ "exp",
+      str_detect(str_to_lower(model), "linear") ~ "Linear",
+      TRUE ~ model))
+
+mod_bestfit_temp2 <- mod_bestfit_temp2 %>%
+  mutate(
+    sterrorA = as.numeric(sterrorA),
+    sterrorB = as.numeric(sterrorB),
+    sterrorC = as.numeric(sterrorC),
+    sterrorD = as.numeric(sterrorD),
+    D = as.numeric(D),
+    psi_kleaf95 = as.numeric(psi_kleaf95))
+
+convert1 <- convert_fit_to_gavin_K(mod_bestfit_temp2)
+convert2 <- convert_to_list_of_lists(convert1)
+
+avsa_fit <- convert_to_fit_structure(convert2[[1]])
+hovu_fit <- convert_to_fit_structure(convert2[[2]])
+trae_fit <- convert_to_fit_structure(convert2[[3]])
+chga_fit <- convert_to_fit_structure(convert2[[4]])
+pegl_fit <- convert_to_fit_structure(convert2[[5]])
+zema_fit <- convert_to_fit_structure(convert2[[6]])
+
+
+avsa_boot <- mybootPX(avsa_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+hovu_boot <- mybootPX(hovu_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+trae_boot <- mybootPX(trae_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+chga_boot <- mybootPX(chga_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+pegl_boot <- mybootPX(pegl_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+zema_boot <- mybootPX(zema_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+
+
+boot_list <- list(
+  avsa = avsa_boot,
+  hovu = hovu_boot,
+  trae = trae_boot,
+  chga = chga_boot,
+  pegl = pegl_boot,
+  zema = zema_boot)
+
+c3_species <- c("avsa", "hovu", "trae")
+c4_species <- c("chga", "pegl", "zema")
+
+boot_table_Kplant <- purrr::map_dfr(names(boot_list), function(name) {
+  x <- boot_list[[name]]
+  tibble::tibble(
+    Species = x$species,
+    type = if (tolower(name) %in% c3_species) "C3" else "C4",
+    psi_PX = x$psi_PX,
+    boot_mean = x$boot_mean,
+    boot_median = x$boot_median,
+    boot_se = x$boot_se,
+    margin_error = x$margin_error,
+    px_est = x$px_est,
+    conf.low = x$conf.low,
+    conf.high = x$conf.high
+  )
+})
+boot_table_Kplant
+
+write.csv(x = boot_table_Kplant, file = "../results/KplantKroots_results/Kplant/boottableKplant.csv")
+#write.csv(x = boot_table_Kplant, file = "../results/KplantKroots_results/Kplant/boottableKplant01.csv")
+```
+
+#Kroot
+
+```{r}
+result_path <- "C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/KplantKroots_results"
+
+avsa_Kroot <-  read_excel(file.path(result_path, "Kroot", "AIC_Kroot.xlsx")) %>% 
+    filter(Species == 'AVSA') %>% filter(model == "Logistic")
+ 
+hovu_Kroot <- read_excel(file.path(result_path, "Kroot", "AIC_Kroot.xlsx")) %>% 
+    filter(Species == 'HOVU') %>% filter(model == "Exponential")
+
+trae_Kroot <- read_excel(file.path(result_path, "Kroot", "AIC_Kroot.xlsx")) %>% #but best model exp2
+   filter(Species == 'TRAE')  %>% filter(model == "Exponential2")
+
+pegl_Kroot<- read_excel(file.path(result_path, "Kroot", "AIC_Kroot.xlsx")) %>% 
+  filter(Species == 'PEGL')  %>% filter(model == "Exponential")
+
+zema_Kroot <-   read_excel(file.path(result_path, "Kroot", "AIC_Kroot.xlsx")) %>%
+  filter(Species == 'ZEMA')  %>% filter(model == "Exponential")
+
+chga_Kroot <-    read_excel(file.path(result_path, "Kroot", "AIC_Kroot.xlsx")) %>% #but best model exp2
+  filter(Species == 'CHGA')  %>% filter(model == "Exponential")
+
+mod_bestfit_temp2<-rbind(avsa_Kroot, hovu_Kroot, trae_Kroot, chga_Kroot, pegl_Kroot, zema_Kroot)
+mod_bestfit_temp2
+colnames(mod_bestfit_temp2)
+
+mod_bestfit_temp2 <- mod_bestfit_temp2 %>%
+  mutate(
+    sterrorA = as.numeric(sterrorA),
+    sterrorB = as.numeric(sterrorB),
+    sterrorC = as.numeric(sterrorC),
+    sterrorD = as.numeric(sterrorD),
+    D = as.numeric(D),
+    psi_kleaf95 = as.numeric(psi_kleaf95))
+
+mod_bestfit_temp2 <- mod_bestfit_temp2 %>%
+  mutate(
+    model = case_when(
+      str_detect(str_to_lower(model), "sig") ~ "sig",
+      str_detect(str_to_lower(model), "log") ~ "log",
+      str_detect(str_to_lower(model), "exp2") ~ "exp2",
+      str_detect(str_to_lower(model), "exponential2") ~ "exp2",
+      str_detect(str_to_lower(model), "exponential") ~ "exp",
+      str_detect(str_to_lower(model), "linear") ~ "Linear",
+      TRUE ~ model))
+
+convert1 <- convert_fit_to_gavin_K(mod_bestfit_temp2)
+convert2 <- convert_to_list_of_lists(convert1)
+
+avsa_fit <- convert_to_fit_structure(convert2[[1]])
+hovu_fit <- convert_to_fit_structure(convert2[[2]])
+trae_fit <- convert_to_fit_structure(convert2[[3]])
+chga_fit <- convert_to_fit_structure(convert2[[4]])
+pegl_fit <- convert_to_fit_structure(convert2[[5]])
+zema_fit <- convert_to_fit_structure(convert2[[6]])
+
+avsa_boot <- mybootPX(avsa_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+hovu_boot <- mybootPX(hovu_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+trae_boot <- mybootPX(trae_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+chga_boot <- mybootPX(chga_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+pegl_boot <- mybootPX(pegl_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+zema_boot <- mybootPX(zema_fit, px = 0.5, psi_max = 0.1, sims = 1000, seed = 123)
+
+
+boot_list <- list(
+  avsa = avsa_boot,
+  hovu = hovu_boot,
+  trae = trae_boot,
+  chga = chga_boot,
+  pegl = pegl_boot,
+  zema = zema_boot)
+
+c3_species <- c("avsa", "hovu", "trae")
+c4_species <- c("chga", "pegl", "zema")
+
+boot_table_Kroot <- purrr::map_dfr(names(boot_list), function(name) {
+  x <- boot_list[[name]]
+  tibble::tibble(
+    Species = x$species,
+    type = if (tolower(name) %in% c3_species) "C3" else "C4",
+    psi_PX = x$psi_PX,
+    boot_mean = x$boot_mean,
+    boot_median = x$boot_median,
+    boot_se = x$boot_se,
+    margin_error = x$margin_error,
+    px_est = x$px_est,
+    conf.low = x$conf.low,
+    conf.high = x$conf.high
+  )
+})
+boot_table_Kroot
+
+write.csv(x = boot_table_Kroot, file = "../results/KplantKroots_results/Kroot/boottableKroot.csv")
+#write.csv(x = boot_table_Kroot, file = "../results/KplantKroots_results/Kroot/boottableKroot0.1.csv")
+```
+
+#Combine
+```{r}
+boot_table_A <- boot_table_A %>% mutate(trait = "A")
+boot_table_gs <- boot_table_gs %>% mutate(trait = "gs")
+
+boot_temp <- rbind(boot_table_A, boot_table_gs)
+
+boot_temp <- boot_temp %>%
+  mutate(Species_name = case_when(
+    Species == "Zema" ~ "Z. mays",
+    Species == "Chga" ~ "C. gayan",
+    Species == "Pegl" ~ "P. glaucum",
+    Species == "Avsa" ~ "A. sativa",
+    Species == "Hovu" ~ "H. vulgare",
+    Species == "Trae" ~ "T. aestivum",
+    TRUE ~ Species))
+
+boot_table_Kleaf <- boot_table_Kleaf %>% mutate(trait = "Kleaf")
+boot_table_Kplant <- boot_table_Kplant %>% mutate(trait = "Kplant")
+boot_table_Kroot <- boot_table_Kroot %>% mutate(trait = "Kroot")
+
+boot_temp2 <- rbind(boot_table_Kleaf, boot_table_Kroot, boot_table_Kplant)
+
+boot_temp2 <- boot_temp2 %>%
+  mutate(Species_name = case_when(
+    Species == "ZEMA" ~ "Z. mays",
+    Species == "CHGA" ~ "C. gayan",
+    Species == "PEGL" ~ "P. glaucum",
+    Species == "AVSA" ~ "A. sativa",
+    Species == "HOVU" ~ "H. vulgare",
+    Species == "TRAE" ~ "T. aestivum",
+    TRUE ~ Species))
+
+boottable_final <-rbind(boot_temp, boot_temp2)
+boottable_final
+View(boottable_final)
+
+trait_labels <- c(
+  "A"      = "P[A50]",
+  "gs"     = "P[italic(g[s])*50]",
+  "Kleaf"  = "P[italic(K[leaf])*50]",
+  "Kplant" = "P[italic(K[plant])*50]",
+  "Kroot"  = "P[italic(K[root])*50]"
+)
+
+
+# Remettre dans l'ordre
+boottable_final$Species_name <- factor(boottable_final$Species_name,
+  levels = c("Z. mays", "P. glaucum", "C. gayan", "T. aestivum", "H. vulgare", "A. sativa"))
+
+p_trait <- boottable_final%>%
+  ggplot(aes(x=Species_name, y=px_est, ymin=conf.low, ymax=conf.high, color=type)) +
+  geom_pointrange(position=position_dodge(width=0.5), size=0.8) +
+  facet_wrap(~trait, ncol=2, scales="free_x", labeller = labeller(trait = as_labeller(trait_labels, label_parsed)))+
+  coord_flip() +
+  labs(y="P50 (-MPa)", x="", color="Mecanism") +
+  scale_color_manual(values = c("C4"="#E69F00", "C3"="#56B4E9")) +
+  theme_bw(base_size=14)+
+  theme(
+    axis.text.y = element_text(face= "italic"),
+    strip.background = element_blank(),
+    legend.position = "bottom"
+  )
+p_trait
+
+ggsave(filename = "../results/boot_trait_01MPaMarion_quantile.jpg", plot = p_trait, width = 6, height = 8)
+
+```
+
+```{r}
+# Reorder species factor
+boottable_final$Species_name <- factor(boottable_final$Species_name,
+  levels = c("Z. mays", "P. glaucum", "C. gayan", "T. aestivum", "H. vulgare", "A. sativa"))
+
+# Plot for trait A
+p_A <- ggplot(boottable_final[boottable_final$trait == "A", ],
+              aes(x = Species_name, y = px_est,
+                  ymin = conf.low, ymax = conf.high, color = type)) +
+  geom_pointrange(position = position_dodge(width = 0.5), size = 0.8) +
+  coord_flip() +
+  labs(y = "P50 (-MPa)", x = "",
+       color = "Metabolism",
+      title = expression(P[A50])) +
+  scale_color_manual(values = c("C4" = "#E69F00", "C3" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(axis.text.y = element_text(face = "italic"),
+        plot.title = element_text(hjust = 0),
+        legend.position = "bottom")
+
+# Plot for trait gs
+p_gs <- ggplot(boottable_final[boottable_final$trait == "gs", ],
+               aes(x = Species_name, y = px_est,
+                   ymin = conf.low, ymax = conf.high, color = type)) +
+  geom_pointrange(position = position_dodge(width = 0.5), size = 0.8) +
+  coord_flip() +
+  labs(y = "P50 (-MPa)", x = "",
+       color = "Metabolism",
+      title = expression(P[italic(g[s])*50])) +
+  scale_color_manual(values = c("C4" = "#E69F00", "C3" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(axis.text.y = element_blank(),
+        plot.title = element_text(hjust = 0),
+        legend.position = "bottom")
+
+# Plot for trait Kleaf
+p_Kleaf <- ggplot(boottable_final[boottable_final$trait == "Kleaf", ],
+                  aes(x = Species_name, y = px_est,
+                      ymin = conf.low, ymax = conf.high, color = type)) +
+  geom_pointrange(position = position_dodge(width = 0.5), size = 0.8) +
+  coord_flip() +
+  labs(y = "P50 (-MPa)", x = "",
+       color = "Metabolism",
+       title = expression(P[italic(K[leaf])*50])) +
+  scale_color_manual(values = c("C4" = "#E69F00", "C3" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(axis.text.y = element_blank(),
+        plot.title = element_text(hjust = 0),
+        legend.position = "bottom")
+
+# Plot for trait Kplant
+p_Kplant <- ggplot(boottable_final[boottable_final$trait == "Kplant", ],
+                   aes(x = Species_name, y = px_est,
+                       ymin = conf.low, ymax = conf.high, color = type)) +
+  geom_pointrange(position = position_dodge(width = 0.5), size = 0.8) +
+  coord_flip() +
+  labs(y = "P50 (-MPa)", x = "",
+       color = "Metabolism",
+       title = expression(P[italic(K[plant])*50])) +
+  scale_color_manual(values = c("C4" = "#E69F00", "C3" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(axis.text.y = element_blank(),
+        plot.title = element_text(hjust = 0),
+        legend.position = "bottom")
+
+# Plot for trait Kroot
+p_Kroot <- ggplot(boottable_final[boottable_final$trait == "Kroot", ],
+                  aes(x = Species_name, y = px_est,
+                      ymin = conf.low, ymax = conf.high, color = type)) +
+  geom_pointrange(position = position_dodge(width = 0.5), size = 0.8) +
+  coord_flip() +
+  labs(y = "P50 (-MPa)", x = "",
+       color = "Metabolism",
+       title = expression(P[italic(K[root])*50])) +
+  scale_color_manual(values = c("C4" = "#E69F00", "C3" = "#56B4E9")) +
+  theme_bw(base_size = 14) +
+  theme(axis.text.y = element_blank(),
+        plot.title = element_text(hjust = 0),
+        legend.position = "bottom")
+
+Figure2 <- ggarrange(p_A, p_gs, p_Kleaf, p_Kplant, p_Kroot, labels = c("A", "B", "C", "D", "E", "F"),heights = c(1,1,1,1,1) , widths = c(1.38, 1, 1, 1, 1), ncol = 5, nrow = 1, common.legend = TRUE, legend = "bottom")
+
+Figure2 
+ggsave(filename = "../results/Figure2.jpg", plot = Figure2, width = 12, height = 4)
+
+```
+
+#Compare traits within a given species
+
+```{r}
+
+boottable_final <- boottable_final %>%
+  mutate(trait_label = case_when(
+    trait == "A" ~ "A",
+    trait == "gs" ~ "g[s]",
+    trait == "Kleaf" ~ "K[leaf]",
+    trait == "Kplant" ~ "K[plant]",
+    trait == "Kroot" ~ "K[root]",
+    TRUE ~ trait))
+
+boottable_final <- boottable_final %>%
+  mutate(Species_label = case_when(
+    Species_name == "Z. mays"     ~ "italic('Z. mays')",
+    Species_name == "C. gayan"    ~ "italic('C. gayan')",
+    Species_name == "P. glaucum"  ~ "italic('P. glaucum')",
+    Species_name == "A. sativa"   ~ "italic('A. sativa')",
+    Species_name == "H. vulgare"  ~ "italic('H. vulgare')",
+    Species_name == "T. aestivum" ~ "italic('T. aestivum')",
+    TRUE ~ Species_name
+  ))
+
+
+boottable_final$trait_label <- factor(boottable_final$trait_label,
+  levels = c("A","g[s]", "K[plant]", "K[leaf]", "K[root]"))
+
+p_species <- boottable_final %>%
+  ggplot(aes(x=trait_label, y=px_est, ymin=conf.low, ymax=conf.high, color=type)) +
+  geom_pointrange(position=position_dodge(width=0.5), size=0.8) +
+  facet_wrap(~Species_label, ncol=2, scales="free_x", labeller=label_parsed)+ 
+  coord_flip() +
+  labs(y="P50 (-MPa)", x="", color="Mecanism") +
+  scale_color_manual(values = c("C4"="#E69F00", "C3"="#56B4E9")) +
+  scale_x_discrete(labels = c(
+  "A" = expression(A),
+  "g[s]" = expression(g[s]),
+  "K[plant]" = expression(K[plant]),
+  "K[leaf]" = expression(K[leaf]),
+  "K[root]" = expression(K[root])
+))+
+  theme_bw(base_size=14)+
+  theme(
+    strip.background = element_blank()
+  )
+p_species
+
+ggsave(filename = "../results/boot_species.jpg",  plot = p_trait, width = 6, height = 8)
+```
+
