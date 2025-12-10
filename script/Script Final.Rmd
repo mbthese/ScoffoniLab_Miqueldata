@@ -246,7 +246,7 @@ Avsa_GEx_A<-ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
   # ggtitle("A. sativa")+
   ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
-  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlab(expression(paste(Psi," (MPa)")))+
   xlim(0,-1.6)+
   ylim(0,45)
 Avsa_GEx_A
@@ -287,7 +287,7 @@ Hovu_GEx_A<-ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
 #   ggtitle("H. vulgare")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
-  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlab(expression(paste(Psi," (MPa)")))+
   xlim(0,-1.6)+
   ylim(0,45)
 Hovu_GEx_A
@@ -329,7 +329,7 @@ Trae_GEx_A<-ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
    # ggtitle("T. aestivum")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
-  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlab(expression(paste(Psi," (MPa)")))+
   xlim(0,-1.6)+
   ylim(0,45)
 Trae_GEx_A
@@ -373,7 +373,7 @@ Pegl_GEx_A<-ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
  #  ggtitle("P. glaucum")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
-  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlab(expression(paste(Psi," (MPa)")))+
   xlim(0,-1.6)+
   ylim(0,45)
 Pegl_GEx_A
@@ -418,7 +418,7 @@ Chga_GEx_A<-ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
 #    ggtitle("C. gayan")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
-  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlab(expression(paste(Psi," (MPa)")))+
   xlim(0,-1.6)+
   ylim(0,45)
 Chga_GEx_A
@@ -462,7 +462,7 @@ Zema_GEx_A<-ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
  # ggtitle("Z. mays")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
-  xlab(expression(paste(Psi["leaf"]," (MPa)")))+
+  xlab(expression(paste(Psi," (MPa)")))+
   xlim(0,-1.6)+
   ylim(0,45)
 Zema_GEx_A
