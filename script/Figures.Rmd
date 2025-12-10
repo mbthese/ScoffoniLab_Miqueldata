@@ -51,7 +51,7 @@ pval_from_R2_regression <- function(R2, n) {
 pval_from_R2_gaussian <- function(R2, n, k_full = 3, k_null = 1) {
   # Likelihood ratio statistic from R²
   LR <- - (n * log(1 - R2))   # approx log-likelihood ratio
-  LR <- 2 * LR                # standard LR test statistic
+  LR <- 2 * LR                # standard LR test statistic, transforme la différence de log-vraisemblances en statistique de test χ².
   
   # Degrees of freedom = parameters in full - parameters in null
   df <- k_full - k_null
@@ -282,9 +282,10 @@ Avsa_GEx_A<-ggplot()+
   ylim(0,101)
 Avsa_GEx_A
 
+    
 Avsa_GEx_A_SI<-ggplot()+
- geom_point(data=data_avsa,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="black", alpha = 0.3)+
- geom_line(aes(x = x_seq.avsa_A, y = y_model.avsa_A_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_avsa,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="#6DB9F8", alpha = 0.3)+
+ geom_line(aes(x = x_seq.avsa_A, y = y_model.avsa_A_sigmoidal), color = '#6DB9F8', size=1.5)+
   #geom_point(data= GExdata.midd %>% filter(Species == "Avsa"), aes(x= F.wp.leaf, y=An.area), color = 'red', size = 4, alpha = 0.3)+
   geom_vline(xintercept = avsa_A_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -295,9 +296,10 @@ Avsa_GEx_A_SI<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
   # ggtitle("A. sativa")+
-   ylab(expression(atop(A, "("*mu*"mol" ~ m^{-2} ~ s^{-1}*")")))+
+  ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,45)
 Avsa_GEx_A_SI
 ```
 
@@ -340,8 +342,8 @@ ylim(0,101)
 Hovu_GEx_A
 
 Hovu_GEx_A_SI<-ggplot()+
- geom_point(data=data_hovu,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="black", alpha = 0.3)+
- geom_line(aes(x = x_seq.hovu_A, y = y_model.hovu_A_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_hovu,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="#6DB9F8", alpha = 0.3)+
+ geom_line(aes(x = x_seq.hovu_A, y = y_model.hovu_A_sigmoidal), color = '#6DB9F8', size=1.5)+
   # geom_point(data= GExdata.midd %>% filter(Species == "Hovu"), aes(x= F.wp.leaf, y=An.area), color = 'red', size = 4, alpha = 0.3)+
     geom_vline(xintercept = hovu_A_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -354,7 +356,8 @@ Hovu_GEx_A_SI<-ggplot()+
 #   ggtitle("H. vulgare")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,45)
 Hovu_GEx_A_SI
 
 ```
@@ -399,8 +402,8 @@ trae_GEx_A
 
 
 Trae_GEx_A_SI<-ggplot()+
- geom_point(data=data_trae,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="black", alpha = 0.3)+
- geom_line(aes(x = x_seq.trae_A, y = y_model.trae_A_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_trae,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="#6DB9F8", alpha = 0.3)+
+ geom_line(aes(x = x_seq.trae_A, y = y_model.trae_A_sigmoidal), color = '#6DB9F8', size=1.5)+
  # geom_point(data= GExdata.midd %>% filter(Species == "Trae"), aes(x= F.wp.leaf, y=An.area), color = 'red', size = 4, alpha = 0.3)+
     geom_vline(xintercept = trae_A_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -413,7 +416,8 @@ Trae_GEx_A_SI<-ggplot()+
    # ggtitle("T. aestivum")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,45)
 Trae_GEx_A_SI
 ```
 
@@ -459,8 +463,8 @@ Pegl_GEx_A<-ggplot()+
 Pegl_GEx_A
 
 Pegl_GEx_A_SI<-ggplot()+
- geom_point(data=data_Pegl,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="black", alpha = 0.3)+
- geom_line(aes(x = x_seq.Pegl_A, y = y_model.Pegl_A_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_Pegl,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="#D9AB33", alpha = 0.3)+
+ geom_line(aes(x = x_seq.Pegl_A, y = y_model.Pegl_A_sigmoidal), color = '#D9AB33', size=1.5)+
   # geom_point(data= GExdata.midd %>% filter(Species == "Pegl"), aes(x= F.wp.leaf, y=An.area), color = 'red', size = 4, alpha = 0.3)+
     geom_vline(xintercept = Pegl_A_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -473,7 +477,8 @@ Pegl_GEx_A_SI<-ggplot()+
  #  ggtitle("P. glaucum")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,45)
 Pegl_GEx_A_SI
 ```
 
@@ -521,8 +526,8 @@ Chga_GEx_A<-ggplot()+
 Chga_GEx_A
 
 Chga_GEx_A_SI<-ggplot()+
- geom_point(data=data_chga,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="black", alpha = 0.3)+
- geom_line(aes(x = x_seq.chga_A, y = y_model.chga_A_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_chga,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="#D9AB33", alpha = 0.3)+
+ geom_line(aes(x = x_seq.chga_A, y = y_model.chga_A_sigmoidal), color = '#D9AB33', size=1.5)+
   # geom_point(data= GExdata.midd %>% filter(Species == "Chga"), aes(x= F.wp.leaf, y=An.area), color = 'red', size = 4, alpha = 0.3)+
     geom_vline(xintercept = chga_A_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -535,7 +540,8 @@ Chga_GEx_A_SI<-ggplot()+
 #    ggtitle("C. gayan")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,45)
 Chga_GEx_A_SI
 ```
 
@@ -581,8 +587,8 @@ Zema_GEx_A<-ggplot()+
 Zema_GEx_A
 
 Zema_GEx_A_SI<-ggplot()+
- geom_point(data=data_zema,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="black", alpha = 0.3)+
- geom_line(aes(x = x_seq.zema_A, y = y_model.zema_A_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_zema,aes(x=`Psileaf from RWC`,y=An.area),size=5,color="#D9AB33", alpha = 0.3)+
+ geom_line(aes(x = x_seq.zema_A, y = y_model.zema_A_sigmoidal), color = '#D9AB33', size=1.5)+
   # geom_point(data= GExdata.midd %>% filter(Species == "Zema"), aes(x= F.wp.leaf, y=An.area), color = 'red', size = 4, alpha = 0.3)+
     geom_vline(xintercept = zema_A_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -595,7 +601,8 @@ Zema_GEx_A_SI<-ggplot()+
  # ggtitle("Z. mays")+
 ylab(expression(paste("A"[n], " ("*mu*"mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,45)
 Zema_GEx_A_SI
 ```
 
@@ -739,8 +746,8 @@ Avsa_GEx_g<-ggplot()+
   Avsa_GEx_g
 
 Avsa_GEx_g_SI<-ggplot()+
- geom_point(data=data_avsa,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.avsa, y = y_model.avsa_g_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_avsa,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="#6DB9F8", alpha = 0.3)+
+   geom_line(aes(x = x_seq.avsa, y = y_model.avsa_g_sigmoidal), color = '#6DB9F8', size=1.5)+
   # geom_point(data= GExdata.midd %>% filter(Species == "Avsa"), aes(x= F.wp.leaf, y=gsw.area), color = 'red', size = 4, alpha = 0.3)+
     geom_vline(xintercept = avsa_g_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -753,7 +760,8 @@ Avsa_GEx_g_SI<-ggplot()+
   # ggtitle("A. sativa")+
    ylab(expression(atop(g[s], "(mol" ~ m^{-2} ~ s^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,0.65)
 
 Avsa_GEx_g_SI
 ```
@@ -799,8 +807,8 @@ Hovu_GEx_g<-ggplot()+
 Hovu_GEx_g
 
 Hovu_GEx_g_SI<-ggplot()+
- geom_point(data=data_hovu,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.hovu, y = y_model.hovu_g_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_hovu,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="#6DB9F8", alpha = 0.3)+
+   geom_line(aes(x = x_seq.hovu, y = y_model.hovu_g_sigmoidal), color = '#6DB9F8', size=1.5)+
    #geom_point(data= GExdata.midd %>% filter(Species == "Hovu"), aes(x= F.wp.leaf, y=gsw.area), color = 'red', size = 4, alpha = 0.3)+
    geom_vline(xintercept = hovu_g_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -813,7 +821,8 @@ Hovu_GEx_g_SI<-ggplot()+
   #  ggtitle("H. vulgare")+
     ylab(expression(paste("g"[sw], " (mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,0.65)
 
 Hovu_GEx_g_SI
 ```
@@ -860,8 +869,8 @@ xlim(0,-1.6)+
 Trae_GEx_g
 
 Trae_GEx_g_SI<-ggplot()+
- geom_point(data=data_trae,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.trae, y = y_model.trae_g_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_trae,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="#6DB9F8", alpha = 0.3)+
+   geom_line(aes(x = x_seq.trae, y = y_model.trae_g_sigmoidal), color = '#6DB9F8', size=1.5)+
 #   geom_point(data= GExdata.midd %>% filter(Species == "Trae"), aes(x= F.wp.leaf, y=gsw.area), color = 'red', size = 4, alpha = 0.3)+
    geom_vline(xintercept = trae_g_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -874,7 +883,8 @@ Trae_GEx_g_SI<-ggplot()+
 #   ggtitle("T. aestivum")+
    ylab(expression(paste("g"[sw], " (mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,0.65)
 
 Trae_GEx_g_SI
 
@@ -924,8 +934,8 @@ Chga_GEx_g
 
 
 Chga_GEx_g_SI<-ggplot()+
- geom_point(data=data_chga,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.chga, y = y_model.chga_g_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_chga,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="#D9AB33", alpha = 0.3)+
+   geom_line(aes(x = x_seq.chga, y = y_model.chga_g_sigmoidal), color = '#D9AB33', size=1.5)+
  #  geom_point(data= GExdata.midd %>% filter(Species == "Chga"), aes(x= F.wp.leaf, y=gsw.area), color = 'red', size = 4, alpha = 0.3)+
    geom_vline(xintercept = chga_g_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -938,7 +948,8 @@ Chga_GEx_g_SI<-ggplot()+
   # ggtitle("C. gayan")+
    ylab(expression(paste("g"[sw], " (mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,0.65)
 
 Chga_GEx_g_SI
 
@@ -988,8 +999,8 @@ Pegl_GEx_g
 
 
 Pegl_GEx_g_SI<-ggplot()+
- geom_point(data=data_pegl,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.pegl, y = y_model.pegl_g_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_pegl,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="#D9AB33", alpha = 0.3)+
+   geom_line(aes(x = x_seq.pegl, y = y_model.pegl_g_sigmoidal), color = '#D9AB33', size=1.5)+
 #   geom_point(data= GExdata.midd %>% filter(Species == "Pegl"), aes(x= F.wp.leaf, y=gsw.area), color = 'red', size = 4, alpha = 0.3)+
    geom_vline(xintercept = pegl_g_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -1002,7 +1013,8 @@ Pegl_GEx_g_SI<-ggplot()+
  #  ggtitle("P. glaucum")+
    ylab(expression(paste("g"[sw], " (mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,0.65)
 
 Pegl_GEx_g_SI
  
@@ -1050,8 +1062,8 @@ Zema_GEx_g
 
 
 Zema_GEx_g_SI<-ggplot()+
- geom_point(data=data_zema,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.zema, y = y_model.zema_g_sigmoidal), color = 'black', size=1.5)+
+ geom_point(data=data_zema,aes(x=`Psileaf from RWC`,y=gsw.area),size=5,color="#D9AB33", alpha = 0.3)+
+   geom_line(aes(x = x_seq.zema, y = y_model.zema_g_sigmoidal), color = '#D9AB33', size=1.5)+
   # geom_point(data= GExdata.midd %>% filter(Species == "Zema"), aes(x= F.wp.leaf, y=gsw.area), color = 'red', size = 4, alpha = 0.3)+
    geom_vline(xintercept = zema_g_sig$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
@@ -1064,7 +1076,8 @@ Zema_GEx_g_SI<-ggplot()+
 #  ggtitle("Z. mays")+
   ylab(expression(paste("g"[sw], " (mol m"^{-2}~"s"^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,0.65)
 
 Zema_GEx_g_SI
 ```
@@ -1133,11 +1146,12 @@ avsa_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("A. sativa")+
-   annotate("text", x = -2, y =200, label = expression(r^2 == 0.37), size = 5, fontface = "bold")+
-  annotate("text", x = -2, y =170, label = expression(P < 0.001), size = 5, fontface = "bold")+
+   annotate("text", x = -2, y =200, label = "r² = 0.37", size = 5)+
+  annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-3)
+  xlim(0,-3)+
+  ylim(0,252)
   
 avsa_W_plot
 ```
@@ -1175,11 +1189,12 @@ hovu_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("H. vulgare")+
-  annotate("text", x = -2, y =200, label = expression(r^2 == 0.21), size = 5, fontface = "bold")+
-   annotate("text", x = -2, y =170, label = expression(P < 0.001), size = 5, fontface = "bold")+
+  annotate("text", x = -2, y =200, label = "r² = 0.21", size = 5)+
+   annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-3)
+  xlim(0,-3)+
+  ylim(0,252)
 hovu_W_plot
 ```
 
@@ -1216,11 +1231,12 @@ trae_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("T. aestivum")+
-  annotate("text", x = -2, y =200, label = expression(r^2 == 0.16), size = 5, fontface = "bold")+
-   annotate("text", x = -2, y =170, label = expression(P < 0.01), size = 5, fontface = "bold")+
+  annotate("text", x = -2, y =200, label = "r² = 0.16", size = 5)+
+   annotate("text", x = -2, y =170, label = as.character(expression(P < 0.01)), size = 5)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-3)
+  xlim(0,-3)+
+  ylim(0,252)
 trae_W_plot
 ```
 
@@ -1258,11 +1274,13 @@ chga_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("C. gayan")+
-  annotate("text", x = -2, y =200, label = expression(r^2 == 0.61), size = 5, fontface = "bold")+
-   annotate("text", x = -2, y =170, label = expression(P < 0.001), size = 5, fontface = "bold")+
+  annotate("text", x = -2, y =200, label = "r² = 0.61", size = 5)+
+   annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-3)
+  xlim(0,-3)+
+  ylim(0,252)
+
 chga_W_plot
 ```
 
@@ -1299,11 +1317,12 @@ pegl_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("P. glaucum")+
-  annotate("text", x = -2, y =200, label = expression(r^2 == 0.53), size = 5, fontface = "bold")+
-  annotate("text", x = -2, y =170, label = expression(P < 0.001), size = 5, fontface = "bold")+
+  annotate("text", x = -2, y =200, label = "r² = 0.53", size = 5)+
+  annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-3)
+  xlim(0,-3)+
+  ylim(0,252)
 pegl_W_plot
 ```
 
@@ -1339,11 +1358,13 @@ zema_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("Z. mays")+
-  annotate("text", x = -2, y =200, label = expression(r^2 == 0.22), size = 5, fontface = "bold")+
-  annotate("text", x = -2, y =170, label = expression(P < 0.05), size = 5, fontface = "bold")+
+  annotate("text", x = -2, y =200, label = "r² = 0.22", size = 5)+
+  annotate("text", x = -2, y =170, label = as.character(expression(P < 0.05)), size = 5)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-3)
+  xlim(0,-3)+
+  ylim(0,252)
+
 zema_W_plot
 ```
 
@@ -1456,8 +1477,8 @@ Avsa_kleaf<-ggplot()+
 Avsa_kleaf
 
 Avsa_kleaf_SI<-ggplot()+
-  geom_point(data=Kleaf_avsa,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.avsa.kleaf, y = y_model.avsa_Kleaf), color = 'black', size=1.5)+
+  geom_point(data=Kleaf_avsa,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="#6DB9F8", alpha = 0.3)+
+   geom_line(aes(x = x_seq.avsa.kleaf, y = y_model.avsa_Kleaf), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept = avsa_K$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_text(size=14),
@@ -1469,7 +1490,8 @@ Avsa_kleaf_SI<-ggplot()+
  #  ggtitle("A. sativa")+
    ylab(expression(atop(K[leaf], "(mmol" ~ m^{-2} ~ s^{-1} ~ MPa^{-1}*")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,60)
  
 Avsa_kleaf_SI
 
@@ -1509,8 +1531,8 @@ Hovu_kleaf
 
 
 Hovu_kleaf_SI<-ggplot()+
-  geom_point(data=Kleaf_hovu,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = (-1)*x_seq.hovu.kleaf, y = y_model.hovu_Kleaf), color = 'black', size=1.5)+
+  geom_point(data=Kleaf_hovu,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="#6DB9F8", alpha = 0.3)+
+   geom_line(aes(x = (-1)*x_seq.hovu.kleaf, y = y_model.hovu_Kleaf), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept = hovu_K$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -1522,7 +1544,8 @@ Hovu_kleaf_SI<-ggplot()+
 #  ggtitle("H. vulgare")+
   ylab(expression(paste("K"[leaf], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,60)
  
 Hovu_kleaf_SI
 ```
@@ -1563,8 +1586,8 @@ xlim(0,-1.6)+
   ylim(0,101)
  
 Trae_kleaf_SI<-ggplot()+
-  geom_point(data=Kleaf_trae,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.trae.kleaf, y = y_model.trae_Kleaf), color = 'black', size=1.5)+
+  geom_point(data=Kleaf_trae,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="#6DB9F8", alpha = 0.3)+
+   geom_line(aes(x = x_seq.trae.kleaf, y = y_model.trae_Kleaf), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept = trae_K$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -1576,7 +1599,8 @@ Trae_kleaf_SI<-ggplot()+
  #  ggtitle("T. aestivum")+
   ylab(expression(paste("K"[leaf], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,60)
  
 Trae_kleaf_SI
 
@@ -1621,8 +1645,8 @@ Chga_kleaf<- ggplot()+
 Chga_kleaf
 
 Chga_kleaf_SI<-ggplot()+
-  geom_point(data=Kleaf_chga,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.chga.kleaf, y = y_model.chga_Kleaf), color = 'black', size=1.5)+
+  geom_point(data=Kleaf_chga,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="#D9AB33", alpha = 0.3)+
+   geom_line(aes(x = x_seq.chga.kleaf, y = y_model.chga_Kleaf), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept = chga_K$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -1634,7 +1658,8 @@ Chga_kleaf_SI<-ggplot()+
  #   ggtitle("C. gayan")+
   ylab(expression(paste("K"[leaf], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,60)
  
 Chga_kleaf_SI
 ```
@@ -1677,8 +1702,8 @@ Pegl_kleaf<-ggplot()+
 
 
 Pegl_kleaf_SI<-ggplot()+
-  geom_point(data=Kleaf_pegl,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.pegl.kleaf, y = y_model.pegl_Kleaf), color = 'black', size=1.5)+
+  geom_point(data=Kleaf_pegl,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="#D9AB33", alpha = 0.3)+
+   geom_line(aes(x = x_seq.pegl.kleaf, y = y_model.pegl_Kleaf), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept = pegl_K$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -1690,7 +1715,8 @@ Pegl_kleaf_SI<-ggplot()+
 #   ggtitle("P. glaucum")+
   ylab(expression(paste("K"[leaf], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,60)
  
 Pegl_kleaf_SI
 ```
@@ -1732,8 +1758,8 @@ Zema_kleaf<- ggplot()+
   ylim(0,101)
 
 Zema_kleaf_SI<-ggplot()+
-  geom_point(data=Kleaf_zema,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="black", alpha = 0.3)+
-   geom_line(aes(x = x_seq.zema.kleaf, y = y_model.zema_Kleaf), color = 'black', size=1.5)+
+  geom_point(data=Kleaf_zema,aes(x=`Lowest Psileaf`,y=`Kleaf Tcorr`),size=5,color="#D9AB33", alpha = 0.3)+
+   geom_line(aes(x = x_seq.zema.kleaf, y = y_model.zema_Kleaf), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept = zema_K$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -1745,7 +1771,8 @@ Zema_kleaf_SI<-ggplot()+
 #  ggtitle("Z. mays")+
   ylab(expression(paste("K"[leaf], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
-  xlim(0,-1.6)
+  xlim(0,-1.6)+
+  ylim(0,60)
  
 Zema_kleaf_SI
 ```
@@ -1862,8 +1889,8 @@ Avsa_kplant
 
 #plot SI
 Avsa_kplant_SI<- ggplot()+
- geom_point(data=data_Kplant_avsa,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.avsa.kplant, y = y.model.Kplant.avsa*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kplant_avsa,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="#6DB9F8", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.avsa.kplant, y = y.model.Kplant.avsa*10^3), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept =avsa_Kplant_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_text(size=14),
@@ -1875,8 +1902,8 @@ Avsa_kplant_SI<- ggplot()+
  #  ggtitle("A. sativa")+
    ylab(expression(atop(K[plant], "(mmol" ~ m^{-2} ~ s^{-1} ~ MPa^{-1}*")")))+
   xlab(expression(paste(Psi["plant"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,25)
  
 Avsa_kplant_SI
 ```
@@ -1927,8 +1954,8 @@ hovu_kplant
 
 #plot SI
 hovu_kplant_SI<- ggplot()+
- geom_point(data=data_Kplant_hovu,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.hovu.kplant, y = y.model.Kplant.hovu*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kplant_hovu,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="#6DB9F8", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.hovu.kplant, y = y.model.Kplant.hovu*10^3), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept =hovu_Kplant_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -1939,8 +1966,8 @@ hovu_kplant_SI<- ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
   # ggtitle("H. vulgare")+
   xlab(expression(paste(Psi["plant"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,25)
  
 hovu_kplant_SI
 ```
@@ -1990,8 +2017,8 @@ trae_kplant
 
 #plot SI
 trae_kplant_SI<- ggplot()+
- geom_point(data=data_Kplant_trae,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="black", , alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.trae.kplant, y = y.model.Kplant.trae*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kplant_trae,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="#6DB9F8", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.trae.kplant, y = y.model.Kplant.trae*10^3), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept =trae_Kplant_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -2002,8 +2029,8 @@ trae_kplant_SI<- ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
  #  ggtitle("T. aestivum")+
   xlab(expression(paste(Psi["plant"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,25)
  
 trae_kplant_SI
 ```
@@ -2052,8 +2079,8 @@ chga_kplant
 
 #plot SI
 chga_kplant_SI<- ggplot()+
- geom_point(data=data_Kplant_chga,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.chga.kplant, y = y.model.Kplant.chga*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kplant_chga,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="#D9AB33", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.chga.kplant, y = y.model.Kplant.chga*10^3), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept =chga_Kplant_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -2065,8 +2092,8 @@ chga_kplant_SI<- ggplot()+
 #  ggtitle("C. gayan")+
    ylab(expression(paste("K"[plant], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["plant"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,25)
  
 chga_kplant_SI
 ```
@@ -2112,8 +2139,8 @@ pegl_kplant
 
 #plot SI
 pegl_kplant_SI<- ggplot()+
- geom_point(data=data_Kplant_pegl,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="black",alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.pegl.kplant, y = y.model.Kplant.pegl*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kplant_pegl,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="#D9AB33",alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.pegl.kplant, y = y.model.Kplant.pegl*10^3), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept =pegl_Kplant_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -2124,8 +2151,8 @@ pegl_kplant_SI<- ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
    #ggtitle("P. glaucum")+
   xlab(expression(paste(Psi["plant"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,25)
  
 pegl_kplant_SI
 ```
@@ -2173,8 +2200,8 @@ zema_kplant
 
 #plot SI
 zema_kplant_SI<- ggplot()+
- geom_point(data=data_Kplant_zema,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.zema.kplant, y = y.model.Kplant.zema*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kplant_zema,aes(x=(-1)*`psi Licor (Mpa)`,y=Kplant*10^3),size=5,color="#D9AB33", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.zema.kplant, y = y.model.Kplant.zema*10^3), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept =zema_Kplant_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -2185,8 +2212,8 @@ zema_kplant_SI<- ggplot()+
         title = element_text(size=13, face = "bold.italic"))+
   # ggtitle("Z. mays")+
   xlab(expression(paste(Psi["plant"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,25)
  
 zema_kplant_SI
 ```
@@ -2305,8 +2332,8 @@ Avsa_kroot<- ggplot()+
  Avsa_kroot
 #SI Kroot
 Avsa_kroot_SI<- ggplot()+
- geom_point(data=data_Kroot_avsa,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.avsa.kroot, y = y.model.Kroot.avsa*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kroot_avsa,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="#6DB9F8", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.avsa.kroot, y = y.model.Kroot.avsa*10^3), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept =avsa_Kroot_summary$P50_0.1kmax*(-1), linetype =2)+
  theme_minimal()+
 theme(axis.title.y=element_text(size=14),
@@ -2318,8 +2345,8 @@ title = element_text(size=13, face = "bold.italic"))+
   ggtitle("A. sativa")+
   ylab(expression(atop(K[root], "(mmol" ~ m^{-2} ~ s^{-1} ~ MPa^{-1}*")")))+
   xlab(expression(paste(Psi["root"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,155)
 Avsa_kroot_SI
 ```
 
@@ -2363,8 +2390,8 @@ hovu_kroot
 
 #plot SI
 hovu_kroot_SI<- ggplot()+
- geom_point(data=data_Kroot_hovu,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.hovu.kroot, y = y.model.Kroot.hovu*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kroot_hovu,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="#6DB9F8", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.hovu.kroot, y = y.model.Kroot.hovu*10^3), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept =hovu_Kroot_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -2376,8 +2403,8 @@ hovu_kroot_SI<- ggplot()+
    ggtitle("H. vulgare")+
   ylab(expression(paste("K"[root], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["root"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,155)
  
 hovu_kroot_SI
 ```
@@ -2424,8 +2451,8 @@ trae_kroot
 
 #plot SI
 trae_kroot_SI<- ggplot()+
- geom_point(data=data_Kroot_trae,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.trae.kroot, y = y.model.Kroot.trae*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kroot_trae,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="#6DB9F8", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.trae.kroot, y = y.model.Kroot.trae*10^3), color = '#6DB9F8', size=1.5)+
    geom_vline(xintercept =trae_Kroot_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
    theme(axis.title.y=element_blank(),
@@ -2437,8 +2464,8 @@ trae_kroot_SI<- ggplot()+
   ggtitle("T. aestivum")+
   ylab(expression(paste("K"[root], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["root"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,155)
  
 trae_kroot_SI
 ```
@@ -2474,7 +2501,7 @@ chga_kroot<- ggplot()+
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
-   ggtitle("C. gayan")+
+   ggtitle("C. gayana")+
    ylab(expression(paste("relative K"[root],", (%)")))+
   xlab(expression(paste(Psi["root"]," (MPa)")))+
   xlim(0,-1.6)#+
@@ -2484,8 +2511,8 @@ chga_kroot
 
 #plot SI
 chga_kroot_SI<- ggplot()+
-  geom_point(data=data_Kroot_chga,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.chga.kroot, y = y.model.Kroot.chga*10^3), color = 'black', size=1.5)+
+  geom_point(data=data_Kroot_chga,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="#D9AB33", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.chga.kroot, y = y.model.Kroot.chga*10^3), color = '#D9AB33', size=1.5)+
   geom_vline(xintercept =chga_Kroot_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -2494,11 +2521,11 @@ chga_kroot_SI<- ggplot()+
         axis.text.x=element_text(angle=0,vjust=1,hjust=0.5,size=13),
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
-   ggtitle("C. gayan")+
+   ggtitle("C. gayana")+
    ylab(expression(paste("K"[root], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["root"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,155)
  
 chga_kroot_SI
 ```
@@ -2543,8 +2570,8 @@ pegl_kroot
 
 #plot SI
 pegl_kroot_SI<- ggplot()+
- geom_point(data=data_Kroot_pegl,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.pegl.kroot, y = y.model.Kroot.pegl*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kroot_pegl,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="#D9AB33", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.pegl.kroot, y = y.model.Kroot.pegl*10^3), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept =pegl_Kroot_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
    theme(axis.title.y=element_blank(),
@@ -2556,8 +2583,8 @@ pegl_kroot_SI<- ggplot()+
    ggtitle("P. glaucum")+
    ylab(expression(paste("K"[root], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["root"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,155)
  
 pegl_kroot_SI
 ```
@@ -2603,8 +2630,8 @@ zema_kroot
 
 #plot SI
 zema_kroot_SI<- ggplot()+
- geom_point(data=data_Kroot_zema,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="black", alpha = 0.3)+
-  geom_line(aes(x =(-1)*x_seq.zema.kroot, y = y.model.Kroot.zema*10^3), color = 'black', size=1.5)+
+ geom_point(data=data_Kroot_zema,aes(x=(-1)*`psi roots`,y=Kroot*10^3),size=5,color="#D9AB33", alpha = 0.3)+
+  geom_line(aes(x =(-1)*x_seq.zema.kroot, y = y.model.Kroot.zema*10^3), color = '#D9AB33', size=1.5)+
    geom_vline(xintercept =zema_Kroot_summary$P50_0.1kmax*(-1), linetype =2)+
   theme_minimal()+
   theme(axis.title.y=element_blank(),
@@ -2616,8 +2643,8 @@ zema_kroot_SI<- ggplot()+
   ggtitle("Z. mays")+
    ylab(expression(paste("K"[root], " (mmol "*m^{-2}*" "*s^{-1}*" "*MPa^{-1},")")))+
   xlab(expression(paste(Psi["root"]," (MPa)")))+
-  xlim(0,-1.6)#+
- # ylim(0,101)
+  xlim(0,-1.6)+
+  ylim(0,155)
  
 zema_kroot_SI
 ```
@@ -3882,6 +3909,195 @@ FVFM_recovery_curve <- SRCdata_recovery %>%
   drop_na()
 
 write.csv(x = FVFM_recovery_curve, file = "../results/fvfm/FVFM_recovery_curve_PLNCF.csv") #ready for MB script
+
+
+library(drc)
+library(RColorBrewer) 
+#DR curve fitting 
+DR.m <- drm(gs ~ psi, 
+            data= FVFM_recovery_curve,
+            species, #fit separate curves for each timepoint
+            robust = 'mean', #non-robust least squares estimation ("mean")
+            #fct = LL.3u(fixed = c(NA, 100, NA)))  # upper limit fixed at 100
+            fct = LL.3(names = c("Hill slope", "max", "EC50")))
+print(DR.m)
+compParm(DR.m, "EC50", "-")
+#extract manually: 
+compParm(DR.m, "e", "-")
+
+summary <- summary(DR.m)[[3]] #Coeffs are stored as 3rd element in list obj
+confint(DR.m, level = 0.90)
+
+
+Species <- unique(FVFM_recovery_curve$species)
+curve_cnt <- length(Species)
+cols <- colorRampPalette(brewer.pal(8,"Set2"))(curve_cnt)
+
+par(mfrow=c(2,3))
+
+for (i in 1:curve_cnt) {
+
+  DR <- filter(FVFM_recovery_curve, species == Species[i])
+
+  DR.mi <- drm(gs ~ psi,
+               data = DR,
+               robust = "mean",
+               fct = LL.3(names = c("Hill slope", "Max", "EC50"))
+  )
+
+  plot(DR.mi,
+       type = "all",
+       col = cols[i],
+       pch = 16,
+       lwd = 1,
+       cex.axis = 0.8,
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       legend = TRUE,
+       legendText = Species[i],
+       xlab = "RWC (%)",
+       ylab = "PLCFR"
+  )
+
+  plot(DR.mi,
+       col = cols[i],
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       add = TRUE,
+       type = "confidence"
+  )
+}
+
+#for Chga:  the curves does not reach a steady plateau. Therefore we can’t quantitatively compare best-fit curve EC50 and top values.
+
+par(mfrow=c(1,1))
+
+plot(NA, xlim=c(0,100), ylim=c(0,100), xlab="RWC (%)", ylab="PLCFR")  # blank canvas
+
+for (i in 1:curve_cnt){ 
+  DR = filter(FVFM_recovery_curve, species == Species[i]) 
+  DR.mi <- drm(gs ~ psi, 
+              data= DR,
+              robust = 'mean', #non-robust least squares estimation ("mean")
+              fct = LL.3(names = c("Hill slope", "Max", "EC50")))
+  plot(DR.mi,
+       type= "all",
+       col=cols[i], #auto color selection for curves
+       pch=16,
+       lwd=1,
+       cex.axis=0.8,
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       legend = FALSE,
+       xlab= "RWC (%)",
+       ylab = "PLCFR")
+  plot(DR.mi,
+       col = cols[i],
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       add=TRUE,
+       type='confidence')
+  par(new=TRUE)} #Add new=TRUE arg to overlay graphs
+
+# Add legend for all species
+legend("topright",
+       legend = Species,
+       col = cols,
+       pch = 16,
+       lwd = 2,
+       bty = "n"
+)
+
+###Final plot
+# Define metabolism per species
+metabolism <- c(
+  Avsa = "C3",
+  Hovu = "C3",
+  Trae = "C3",
+  Chga = "C4",
+  Pegl = "C4",
+  Zema = "C4"
+)
+
+# Colors
+cols <- ifelse(metabolism[Species] == "C3", "#6DB9F8", "#D9AB33")
+
+# Line types per species
+lt_C3 <- c("solid", "dotted", "longdash")
+lt_C4 <- c("solid", "dotted", "longdash")
+
+line_types <- character(length(Species))
+
+# Assign line types within each metabolism group
+line_types[metabolism[Species] == "C3"] <- lt_C3[1:sum(metabolism[Species]=="C3")]
+line_types[metabolism[Species] == "C4"] <- lt_C4[1:sum(metabolism[Species]=="C4")]
+
+par(mfrow=c(1,1))
+
+# Define order
+Species_order <- c("Avsa", "Hovu", "Trae", "Pegl", "Zema", "Chga")
+cols_ordered <- cols[match(Species_order, Species)]
+line_types_ordered <- line_types[match(Species_order, Species)]
+
+# Blank canvas
+plot(NA, xlim=c(0,100), ylim=c(0,100),
+     xlab="RWC (%)", ylab="PLCFR")
+
+first <- TRUE
+for (i in 1:length(Species_order)) { 
+  sp <- Species_order[i]
+  DR <- subset(FVFM_recovery_curve, species == sp)
+  
+  DR.mi <- drm(
+    gs ~ psi,
+    data = DR,
+    robust = 'mean',
+    fct = LL.3(names = c("Hill slope", "Max", "EC50"))
+  )
+  
+  # Plot curve
+  plot(DR.mi,
+       type = "all",
+       col = cols_ordered[i],
+       lty = line_types_ordered[i],
+       pch = 16,
+       lwd = 2,
+       xlim = c(0,100),
+       ylim = c(0,100),
+       legend = FALSE,
+       xlab = "RWC (%)",
+       ylab = "PLCFR")
+  
+  # Plot confidence interval
+  plot(DR.mi,
+       type = "confidence",
+       add = TRUE,
+       col = cols_ordered[i],
+       lty = line_types_ordered[i],
+       xlim = c(0, 100),
+       ylim = c(0, 100))
+  
+  if (first) {
+    first <- FALSE
+  } else {
+    par(new = TRUE)
+  }
+}
+
+# Add sorted legend
+legend("topright",
+       legend = Species_order,
+       col = cols_ordered,
+       lty = line_types_ordered,
+       pch = 16,
+       lwd = 2,
+       bty = "n")
+
+# Add panel letter
+mtext("A.", side = 3, line = 2, at = 1, cex = 1.5, font = 2)
+
+
+
 ```
 
 
@@ -4658,6 +4874,192 @@ PLRC_curve <- SRCdata_RC %>%
 
 
 write.csv(x = PLRC_curve, file = "../results/PLRC/PLRC_curve.csv") #ready for fitting with RWC
+
+library(drc)
+library(RColorBrewer) 
+#DR curve fitting 
+DR.m <- drm(gs ~ psi, 
+            data= PLRC_curve,
+            species, #fit separate curves for each timepoint
+            robust = 'mean', #non-robust least squares estimation ("mean")
+            #fct = LL.3u(fixed = c(NA, 100, NA)))  # upper limit fixed at 100
+            fct = LL.3(names = c("Hill slope", "max", "EC50")))
+print(DR.m)
+compParm(DR.m, "EC50", "-")
+#extract manually: 
+compParm(DR.m, "e", "-")
+
+summary <- summary(DR.m)[[3]] #Coeffs are stored as 3rd element in list obj
+confint(DR.m, level = 0.90)
+
+
+Species <- unique(PLRC_curve$species)
+curve_cnt <- length(Species)
+cols <- colorRampPalette(brewer.pal(8,"Set2"))(curve_cnt)
+
+par(mfrow=c(2,3))
+
+for (i in 1:curve_cnt) {
+
+  DR <- filter(PLRC_curve, species == Species[i])
+
+  DR.mi <- drm(gs ~ psi,
+               data = DR,
+               robust = "mean",
+               fct = LL.3(names = c("Hill slope", "Max", "EC50"))
+  )
+
+  plot(DR.mi,
+       type = "all",
+       col = cols[i],
+       pch = 16,
+       lwd = 1,
+       cex.axis = 0.8,
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       legend = TRUE,
+       legendText = Species[i],
+       xlab = "RWC (%)",
+       ylab = "PLRC"
+  )
+
+  plot(DR.mi,
+       col = cols[i],
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       add = TRUE,
+       type = "confidence"
+  )
+}
+
+#for Chga:  the curves does not reach a steady plateau. Therefore we can’t quantitatively compare best-fit curve EC50 and top values.
+
+par(mfrow=c(1,1))
+
+plot(NA, xlim=c(0,100), ylim=c(0,100), xlab="RWC (%)", ylab="PLRC")  # blank canvas
+
+for (i in 1:curve_cnt){ 
+  DR = filter(PLRC_curve, species == Species[i]) 
+  DR.mi <- drm(gs ~ psi, 
+              data= DR,
+              robust = 'mean', #non-robust least squares estimation ("mean")
+              fct = LL.3(names = c("Hill slope", "Max", "EC50")))
+  plot(DR.mi,
+       type= "all",
+       col=cols[i], #auto color selection for curves
+       pch=16,
+       lwd=1,
+       cex.axis=0.8,
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       legend = FALSE,
+       xlab= "RWC (%)",
+       ylab = "PLRC")
+  plot(DR.mi,
+       col = cols[i],
+       xlim = c(0, 100),
+       ylim = c(0, 100),
+       add=TRUE,
+       type='confidence')
+  par(new=TRUE)} #Add new=TRUE arg to overlay graphs
+
+# Add legend for all species
+legend("topright",
+       legend = Species,
+       col = cols,
+       pch = 16,
+       lwd = 2,
+       bty = "n"
+)
+
+###Final plot
+# Define metabolism per species
+metabolism <- c(
+  Avsa = "C3",
+  Hovu = "C3",
+  Trae = "C3",
+  Chga = "C4",
+  Pegl = "C4",
+  Zema = "C4"
+)
+
+# Colors
+cols <- ifelse(metabolism[Species] == "C3", "#6DB9F8", "#D9AB33")
+
+# Line types per species
+lt_C3 <- c("solid", "dotted", "longdash")
+lt_C4 <- c("solid", "dotted", "longdash")
+
+line_types <- character(length(Species))
+
+# Assign line types within each metabolism group
+line_types[metabolism[Species] == "C3"] <- lt_C3[1:sum(metabolism[Species]=="C3")]
+line_types[metabolism[Species] == "C4"] <- lt_C4[1:sum(metabolism[Species]=="C4")]
+
+par(mfrow=c(1,1))
+
+# Define order
+Species_order <- c("Avsa", "Hovu", "Trae", "Pegl", "Zema", "Chga")
+cols_ordered <- cols[match(Species_order, Species)]
+line_types_ordered <- line_types[match(Species_order, Species)]
+
+# Blank canvas
+plot(NA, xlim=c(0,100), ylim=c(0,100),
+     xlab="RWC (%)", ylab="PLRC")
+
+first <- TRUE
+for (i in 1:length(Species_order)) { 
+  sp <- Species_order[i]
+  DR <- subset(PLRC_curve, species == sp)
+  
+  DR.mi <- drm(
+    gs ~ psi,
+    data = DR,
+    robust = 'mean',
+    fct = LL.3(names = c("Hill slope", "Max", "EC50"))
+  )
+  
+  # Plot curve
+  plot(DR.mi,
+       type = "all",
+       col = cols_ordered[i],
+       lty = line_types_ordered[i],
+       pch = 16,
+       lwd = 2,
+       xlim = c(0,100),
+       ylim = c(0,100),
+       legend = FALSE,
+       xlab = "RWC (%)",
+       ylab = "PLRC")
+  
+  # Plot confidence interval
+  plot(DR.mi,
+       type = "confidence",
+       add = TRUE,
+       col = cols_ordered[i],
+       lty = line_types_ordered[i],
+       xlim = c(0, 100),
+       ylim = c(0, 100))
+  
+  if (first) {
+    first <- FALSE
+  } else {
+    par(new = TRUE)
+  }
+}
+
+# Add sorted legend
+legend("topright",
+       legend = Species_order,
+       col = cols_ordered,
+       lty = line_types_ordered,
+       pch = 16,
+       lwd = 2,
+       bty = "n")
+
+# Add panel letter
+mtext("B.", side = 3, line = 2, at = 1, cex = 1.5, font = 2)
+
 ```
 
 
@@ -6433,7 +6835,7 @@ m.PVdata <- ddply(PVdata, c("Metabolism","Species"), summarise,
                   rwc.tlp=mean(rwc.tlp,na.rm=TRUE),
                   cft=mean(cft,na.rm=TRUE),
                   ctlp=mean(ctlp,na.rm=TRUE),
-                  e=mean(e,na.rm=TRUE)*(-1))
+                  e=mean(e,na.rm=TRUE))
 
 #Embolism threshold
 embolism_onset <- tribble(
@@ -6524,7 +6926,12 @@ write.csv(x = summary_table, file = "../results/summary_table_ttest.csv")
 
 ```{r}
 
-units_tbl <- read_excel("C:/Users/mboisse/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/units.xlsx")  %>%   # adjust
+summary_table <- read_csv("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/results/summary_table_ttest.csv") %>%select(-`...1`) 
+
+summary_table <- summary_table %>%
+  relocate(`Kleafmax:gsmax`, .after = Kleafmax)
+
+units_tbl <- read_excel("C:/Users/marion.boisseaux/Dropbox/Mon PC (Jaboty20)/Post_doc_CalState_LA/Miquel_data/data/units.xlsx")  %>%   # adjust
   pivot_longer(
     everything(),
     names_to = "Trait",
@@ -6569,11 +6976,15 @@ df_rounded_named <- df_rounded %>%
   )
 
 df_final <- df_rounded_named %>%
+  mutate(`t.test p-value` = formatC(`t.test p-value`, format = "f", digits = 3)) %>%
   mutate(`t.test p-value` = ifelse(
-    suppressWarnings(as.numeric(`t.test p-value`)) < 0.05,
-    paste0("<b>", `t.test p-value`, "<b>"),
-    as.character(`t.test p-value`)
+    as.numeric(`t.test p-value`) < 0.05,
+    paste0("<b>", `t.test p-value`, "</b>"),
+    `t.test p-value`
   ))
+
+df_final <- df_final %>% filter(!Trait %in% c("SSMleaf", "PKleaf50-Pgs50"))
+
 
 #for subscript and itlic
 df_final$Trait <- dplyr::recode(df_final$Trait,
@@ -6595,15 +7006,18 @@ df_final$Trait <- dplyr::recode(df_final$Trait,
   "cft" = "<i>C</i><sub>ft</sub>",
   "ctlp" = "<i>C</i><sub>tlp</sub>",
   "e" = "ε",
-  "SSMleaf" = "SSM<sub>leaf</sub>",
-  "PKleaf50-Pgs50"  = "P<sub>Kleaf50</sub>-P<sub>gs50</sub>",
+#  "SSMleaf" = "SSM<sub>leaf</sub>",
+ # "PKleaf50-Pgs50"  = "P<sub>Kleaf50</sub>-P<sub>gs50</sub>",
   "Kleafmax:gsmax" = "<i>K</i><sub>leaf,max</sub>:<i>g</i><sub>s,max</sub>",
   "RWC_embolism_onset" = "RWC embolism onset",
   "RWC_PLRC50" = "RWC<sub>PLRC50</sub>",
   "RWC_PLNCF50" = "RWC<sub>PLNCF50</sub>",
   "RWCPLT25" = "RWC<sub>PLT25</sub>",
   "RWCPLA25"= "RWC<sub>PLA25</sub>",
-  "RWCPLW25"  = "RWC<sub>PLW25</sub>")
+  "RWCPLW25"  = "RWC<sub>PLW25</sub>",
+  "PLA" = "PLA<sub>dry</sub>",
+"PLW" = "PLW<sub>dry</sub>",
+"PLT" = "PLT<sub>dry</sub>")
 
 colnames(df_final)[colnames(df_final) == 'A. sativa'] <- '<i>A. sativa</i>'
 colnames(df_final)[colnames(df_final) == 'H. vulgare'] <- '<i>H. vulgare</i>'
@@ -6622,7 +7036,7 @@ df_final %>%
   column_spec(1, width = "7em") %>%#make first column narrower (adjust "7em" )
   #save_kable(file = "../results/Plot_info_summary.png", zoom = 5)
   column_spec(2, width = "13em") %>%
-  column_spec(9, width = "7em", background = "azure2") %>%
+  column_spec(9, width = "6em", background = "azure2") %>%
   column_spec(10, width = "7em", background = "bisque") %>%
   column_spec(3, width = "8em") %>%
    column_spec(4, width = "8em") %>%
@@ -6633,12 +7047,11 @@ df_final %>%
   column_spec(11, width = "9em") %>%
   kable_styling(bootstrap_options = "striped", font_size =12) %>%
   pack_rows("Leaf gas exchange", 1, 6)%>%
-  pack_rows("Hydraulic conductance", 7, 12) %>%
-  pack_rows("PV traits", 13, 18)%>%
-  pack_rows("Safety margins", 19, 21)%>%
-  pack_rows("Embolism onset, rehydration capacity & photochemistry", 22, 24)%>%
-  pack_rows("Anatomy and shrinkage", 25, 34)  %>%
-  save_kable(file = "../results/Plot_info_summary6.png", zoom = 6)
+  pack_rows("Hydraulic conductance", 7, 13) %>%
+  pack_rows("PV traits", 14, 19)%>%
+  pack_rows("Embolism onset, rehydration capacity & photochemistry", 20, 22)%>%
+  pack_rows("Anatomy and shrinkage", 23, 32)  %>%
+  save_kable(file = "../results/Plot_info_summary_26112025.png", zoom = 6)
 ```
 
 
@@ -6649,6 +7062,7 @@ df_final %>%
 
 # P50 for A, gs, WUE, Kleaf, Kroot, Kplant
 P50_summary <- read.csv("../results/summary_max_P50.csv", header = T) %>%select(-X, -Amax, -gsmax, -Kleafmax, -Krootmax, -Kplantmax)
+
 
 # PV data
 PVdata <- read_xlsx("../data/C3C4 Grasses - PV.xlsx", sheet = "C3C4G PV R") 
@@ -6814,26 +7228,26 @@ events_long <- events_long %>%
   mutate(trait = factor(trait, levels = trait_order))
 
 trait_labels <- c(
-  PKleaf50   = expression(italic(P)[Kleaf50]),
-  PKroot50   = expression(italic(P)[Kroot50]),
-  PKplant50  = expression(italic(P)[Kplant50]),
-  osp.tlp    = expression(pi[tlp]),
-  PWUEimax   = expression(italic(P)[WUEi-max]),
-  Pgs50      = expression(italic(P)[gs50]),
-  PA50       = expression(italic(P)[A50]),
-  PPLNCF50     = expression(italic(P)[PLNCF50]),
+  PKleaf50   = expression(italic(K)[leaf50]),
+  PKroot50   = expression(italic(K)[root50]),
+  PKplant50  = expression(italic(K)[plant50]),
+  osp.tlp    = expression(TLP),
+  PWUEimax   = expression(WUE[imax]),
+  Pgs50      = expression(italic(g)[s50]),
+  PA50       = expression(italic(A)[50]),
+  PPLNCF50     = expression(PLCFR[50]),
   `Embolism onset` = "Embolism onset",
-  PPLRC50       = expression(italic(P)[PLRC50]),
-  PLA25      = expression(italic(P)[LA25]),
-  PLT25      = expression(italic(P)[LT25]),
-  PLW25      = expression(italic(P)[LW25]))
+  PPLRC50       = expression(PLRC[50]),
+  PLA25      = expression(PLA[25]),
+  PLT25      = expression(PLT[25]),
+  PLW25      = expression(PLW[25]))
 
 Figure6 <- ggplot(events_long, aes(x = mean, y = trait, color = Metabolism)) +
   geom_point(size = 4, position = position_dodge(width = 0.5)) +
   geom_errorbarh(aes(xmin = mean - se, xmax = mean + se),
                  height = 0.3,
                  position = position_dodge(width = 0.5)) +
-  scale_color_manual(values = c("C3" = "steelblue", "C4" = "goldenrod")) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33"))  +
   scale_y_discrete(labels = trait_labels) +   # <-- pretty trait labels
   labs(
     x = expression(psi[leaf]~"(MPa)"),
@@ -6844,12 +7258,195 @@ Figure6 <- ggplot(events_long, aes(x = mean, y = trait, color = Metabolism)) +
     legend.title = element_blank(),
     axis.text.y = element_text(size = 16)
   ) +
-  xlim(0,-16.5)
+  xlim(0,-17)
 
 Figure6
 
 
 ggsave(filename = "../results/Figure6.jpg", plot = Figure6, width = 9, height = 7)
+
+
+```
+
+## same for RWC - sequence
+```{r}
+#same for RWC
+#function from MPa to RWC:
+
+psi_to_RWC <- function(psi, tlp, epsilon) {
+
+  # --- helper: forward equation (your original PV formula) ---
+  psi_from_rwc <- function(RWC, tlp, epsilon) {
+    rwc <- RWC / 100
+    Psip <- -(tlp) - epsilon * (1 - rwc)
+    Psip <- ifelse(Psip < 0, 0, Psip)   # your cutoff rule
+    Ps    <- tlp / rwc
+    Psip + Ps
+  }
+
+  # --- CASE 1: Psip = 0 (above TLP) ---
+  rwc_from_psi_case1 <- function(psi, tlp) {
+    rwc <- tlp / psi
+    pmax(pmin(rwc, 1), 0) * 100
+  }
+
+  # --- CASE 2: Psip > 0 (below TLP) ---
+  rwc_from_psi_case2 <- function(psi, tlp, epsilon) {
+    a <- epsilon
+    b <- psi + tlp + epsilon
+    c <- -tlp
+
+    disc <- b*b - 4*a*c
+    disc[disc < 0 & disc > -1e-10] <- 0
+
+    r1 <- (-b + sqrt(disc)) / (2*a)
+    r2 <- (-b - sqrt(disc)) / (2*a)
+
+    r <- ifelse(r1 >= 0 & r1 <= 1, r1,
+                ifelse(r2 >= 0 & r2 <= 1, r2, NA))
+
+    r * 100
+  }
+
+  # --- boundary between Psip=0 and Psip>0 ---
+  rwc_tlp <- 1 + tlp/epsilon
+  psi_tlp <- psi_from_rwc(rwc_tlp * 100, tlp, epsilon)
+
+  # --- choose correct branch ---
+  ifelse(
+    psi >= psi_tlp,
+    rwc_from_psi_case1(psi, tlp),
+    rwc_from_psi_case2(psi, tlp, epsilon)
+  )
+}
+
+psi_to_RWC_simple <- function(psi, tlp, epsilon) {
+
+  a <- epsilon
+  b <- -(psi + tlp + epsilon)
+  c <- tlp
+
+  # discriminant
+  disc <- b*b - 4*a*c
+  disc <- pmax(disc, 0)
+
+  r1 <- (-b + sqrt(disc)) / (2*a)
+  r2 <- (-b - sqrt(disc)) / (2*a)
+
+  r <- ifelse(r1 >= 0 & r1 <= 1, r1,
+              ifelse(r2 >= 0 & r2 <= 1, r2, NA))
+
+  r * 100
+}
+
+
+      
+species_parameters <- tribble(
+  ~Species, ~Metabolism, ~tlp.coef, ~elasticity, 
+  "Avsa", "C3", -0.84, 8.57,
+  "Hovu", "C3", -0.83, 9.27,
+  "Trae", "C3", -0.85, 9.25,
+  "Zema", "C4", -0.68, 8.07,
+  "Chga", "C4", -0.75, 11.6,
+  "Pegl", "C4", -0.68, 8.99
+)
+
+
+summary_species <- P50_summary %>%
+  left_join(m.PVdata) %>%
+  #left_join(embolism_onset_PV) %>%
+ # left_join(FvFm_summary_PV) %>%
+  left_join(RC_summary_PV) %>%
+  #left_join(shrinkage_PV) %>%
+  left_join(species_parameters, by = c("Species", "Metabolism"))
+
+pressure_traits <- c(
+  "PKleaf50", "PKroot50","PKplant50","osp.tlp",
+  "PWUEimax","Pgs50","PA50")
+
+
+summary_species_full <- summary_species %>%
+  rowwise() %>%
+  mutate(
+    across(
+      all_of(pressure_traits),
+      ~ psi_to_RWC_simple(.x, tlp.coef, elasticity),
+      .names = "{.col}_RWC"
+    )
+  ) %>%
+  ungroup()
+
+
+summary_full_all <- summary_species_full %>%
+  select(Species, Metabolism, ends_with("_RWC")) %>%
+  left_join(embolism_onset, by = "Species") %>%
+  left_join(FvFm_summary, by = "Species") %>%
+  left_join(RC_summary, by = "Species") %>%
+  left_join(shrinkage,  by = "Species")
+
+summary_full_all
+
+events_RWC_long <- summary_full_all %>% 
+ select(Species, Metabolism, contains("RWC"))%>%
+  pivot_longer(-c(Species, Metabolism),
+               names_to="trait", values_to="value") %>% 
+  group_by(Metabolism, trait) %>% 
+  summarise(
+    mean = mean(value, na.rm=TRUE),
+    se = sd(value, na.rm=TRUE)/sqrt(n())
+  )
+
+
+
+trait_order <- events_RWC_long %>%
+  group_by(trait) %>%
+  summarise(overall_mean = mean(mean, na.rm = TRUE)) %>%
+  arrange(overall_mean) %>%
+  pull(trait)
+
+events_RWC_long <- events_RWC_long %>%
+  mutate(trait = factor(trait, levels = trait_order))
+
+trait_labels_RWC <- c(
+  PKleaf50_RWC  = expression(italic(K)[leaf50]),
+  PKroot50_RWC   = expression(italic(K)[root50]),
+  PKplant50_RWC= expression(italic(K)[plant50]),
+  osp.tlp_RWC    = expression(TLP),
+  PWUEimax_RWC   = expression(WUE[imax]),
+  Pgs50_RWC     = expression(italic(g)[s50]),
+  PA50_RWC      = expression(italic(A)[50]),
+  RWC_PLNCF50     = expression(PLCFR[50]),
+  RWC_embolism_onset = "Embolism onset",
+  RWC_PLRC50       = expression(PLRC[50]),
+  RWCPLA25      = expression(PLA[25]),
+  RWCPLT25      = expression(PLT[25]),
+  RWCPLW25      = expression(PLW[25]))
+
+
+Figure6_RWC <- ggplot(events_RWC_long,
+                      aes(x = mean, y = trait, color = Metabolism)) +
+  geom_point(size = 4, position = position_dodge(width = 0.5)) +
+  geom_errorbarh(aes(xmin = mean - se, xmax = mean + se),
+                 height = 0.3,
+                 position = position_dodge(width = 0.5)) +
+ scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33"))  +
+  scale_y_discrete(labels = trait_labels_RWC) +   
+  labs(x = "RWC (%)", y = "") +
+  theme_minimal(base_size = 16)+
+  theme(
+    legend.title = element_blank(),
+    axis.text.y = element_text(size = 16)
+  ) +
+  xlim(100,0)
+
+Figure6_RWC 
+
+
+Figure6_total <- ggarrange(Figure6, Figure6_RWC, labels = c("A", "B") , common.legend = T, nrow = 1, ncol=2, legend = "bottom")
+
+Figure6_total 
+
+ggsave(filename = "../results/Figure6_total.jpg", plot = Figure6_total, width = 12, height = 7)
 ```
 
 ##MicroCT graph
@@ -7235,6 +7832,252 @@ dev.off()
 
 ```
 
+```{r}
+#some plots
+
+round(cor_res_s$r["Kleafmax","Krootmax"], 2)
+signif(cor_res_s$P["Kleafmax","Krootmax"], 2)
+round(cor_res_p$r["Kleafmax","Krootmax"], 2)
+signif(cor_res_p$P["Kleafmax","Krootmax"], 2)
+label_text <- "atop(italic(r)[s] == 0.83 * '*',                     italic(r)[p] == 0.78 * 'ns')"
+
+Kleafmax_Krootmax <-ggplot(df, aes(x = Kleafmax, y = Krootmax, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(aes(x = Kleafmax, y = Krootmax), method = "lm",
+              se = FALSE, color = "black", linetype = "dashed",
+              inherit.aes = FALSE) +
+  annotate("text",
+           x =30,
+           y = 0.15,
+           label = label_text,
+           parse= T,
+           size = 5) +
+  ylab(expression(italic(K)[rootmax] ~ "(" * mol ~ m^{-2} ~ s^{-1} ~ MPa^{-1} * ")"))+
+  xlab(expression(italic(K)[leafmax] ~ "(" * mmol ~ m^{-2} ~ s^{-1} ~ MPa^{-1} * ")"))+
+  theme_minimal(base_size = 14) + ggtitle("A.")
+Kleafmax_Krootmax
+#to plot rho instead of R for Spearman: directly change in the function the output like that
+#trace(ggpubr:::.cor_test, edit=TRUE)
+#and edit italic(R) to become rho in
+# if (output.type == "expression") {
+#     z <- z %>% dplyr::mutate(r.label = paste("rho", r, sep = "~`=`~"),
+#but I actually modofied to [2]
+
+
+#####
+round(cor_res_s$r["Kleafmax","Amax"], 2)
+signif(cor_res_s$P["Kleafmax","Amax"], 2)
+round(cor_res_p$r["Kleafmax","Amax"], 2)
+signif(cor_res_p$P["Kleafmax","Amax"], 2)
+label_text <- "atop(italic(r)[s] == 0.2 * 'ns',                     italic(r)[p] == -0.64 * 'ns')"
+
+Kleafmax_Amax <-ggplot(df, aes(x = Kleafmax, y = Amax, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(aes(x = Kleafmax, y = Amax), method = "lm",
+              se = FALSE, color = "black", linetype = "dashed",
+              inherit.aes = FALSE) +
+  annotate("text",
+           x =60,
+           y = 40,
+           label = label_text,
+           parse= T,
+           size = 5) +
+  ylab(expression(A[max] ~ "(" * µmol ~ m^{-2} ~ s^{-1} * ")"))+
+  xlab(expression(italic(K)[leafmax] ~ "(" * mmol ~ m^{-2} ~ s^{-1} ~ MPa^{-1} * ")"))+
+  theme_minimal(base_size = 14) + ggtitle("B.")
+Kleafmax_Amax
+
+######
+
+
+round(cor_res_s$r["Kleafmax","gsmax"], 2)
+signif(cor_res_s$P["Kleafmax","gsmax"], 2)
+round(cor_res_p$r["Kleafmax","gsmax"], 2)
+signif(cor_res_p$P["Kleafmax","gsmax"], 2)
+label_text <- "atop(italic(r)[s] == 0.83 * '*',                     italic(r)[p] == 0.1 * 'ns')"
+
+Kleafmax_gsmax <-ggplot(df, aes(x = Kleafmax, y = gsmax, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(aes(x = Kleafmax, y = gsmax), method = "lm",
+              se = FALSE, color = "black", linetype = "dashed",
+              inherit.aes = FALSE) +
+  annotate("text",
+           x =60,
+           y = 1.3,
+           label = label_text,
+           parse= T,
+           size = 5) +
+  ylab(expression(g[smax] ~ "(" * mol ~ m^{-2} ~ s^{-1} * ")"))+
+  xlab(expression(italic(K)[leafmax] ~ "(" * mmol ~ m^{-2} ~ s^{-1} ~ MPa^{-1} * ")"))+
+  theme_minimal(base_size = 14) + ggtitle("C.")
+Kleafmax_gsmax
+
+
+######
+round(cor_res_s$r["osp.tlp", "PA50"], 2)
+signif(cor_res_s$P["osp.tlp", "PA50"], 2)
+round(cor_res_p$r["osp.tlp", "PA50"], 2)
+signif(cor_res_p$P["osp.tlp", "PA50"], 2)
+label_text <- "atop(italic(r)[s] ~ '=' * '0.89' ~ '*',italic(r)[p] ~ '=' * '0.95' ~ '**')"
+
+tlp_A50 <-ggplot(df, aes(x = osp.tlp, y = PA50, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(
+    aes(x = osp.tlp, y = PA50),   # re-specify to ignore grouping
+    method = "lm", se = FALSE, color = "black", linetype = "dashed",
+    inherit.aes = FALSE ) +
+  # regression equation (overall)
+  # stat_regline_equation(
+  #   aes(x = osp.tlp, y = PA50),   # ignore grouping
+  #   inherit.aes = FALSE,
+  #   label.x.npc = 0.45,
+  #   label.y.npc = 0.3) +
+  annotate("text",
+           x = -1,
+           y = -0.85,
+           label = label_text,
+           parse= T,
+           hjust = 0, vjust = 0.2, size = 5) +
+   ylab(expression(italic(P)[A50] ~ "(" ~ "MPa" ~ ")"))+
+    xlab(expression(pi[tlp] ~ "(" ~ "MPa" ~ ")"))+
+  theme_minimal(base_size = 14) + ggtitle("D.")
+
+tlp_A50 
+
+#####
+round(cor_res_s$r["osp.tlp", "Pgs50"], 2)
+signif(cor_res_s$P["osp.tlp", "Pgs50"], 2)
+round(cor_res_p$r["osp.tlp", "Pgs50"], 2)
+signif(cor_res_p$P["osp.tlp", "Pgs50"], 2)
+label_text <- "atop(italic(r)[s] ~ '=' * '0.94' ~ '**',italic(r)[p] ~ '=' * '0.86' ~ '*')"
+
+tlp_gs50 <-ggplot(df, aes(x = osp.tlp, y = Pgs50, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(
+    aes(x = osp.tlp, y = Pgs50),   # re-specify to ignore grouping
+    method = "lm", se = FALSE, color = "black", linetype = "dashed",
+    inherit.aes = FALSE ) +
+  annotate("text",
+           x = -1,
+           y = -0.7,
+           label = label_text,
+           parse= T,
+           hjust = 0, vjust = 0.2, size = 5) +
+    ylab(expression(italic(P)[gs50] ~ "(" ~ "MPa" ~ ")"))+
+    xlab(expression(pi[tlp] ~ "(" ~ "MPa" ~ ")"))+
+  theme_minimal(base_size = 14) + ggtitle("E.")
+
+tlp_gs50 
+
+####
+round(cor_res_s$r["osp.tlp", "PKleaf50"], 2)
+signif(cor_res_s$P["osp.tlp", "PKleaf50"], 2)
+round(cor_res_p$r["osp.tlp", "PKleaf50"], 2)
+signif(cor_res_p$P["osp.tlp", "PKleaf50"], 2)
+label_text <-"atop(italic(r)[s] ~ '=' * '0.49' ~ 'ns',italic(r)[p] ~ '=' * '0.31' ~ 'ns')"
+
+tlp_Kleaf50 <-ggplot(df, aes(x = osp.tlp, y = PKleaf50, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(
+    aes(x = osp.tlp, y = PKleaf50),   # re-specify to ignore grouping
+    method = "lm", se = FALSE, color = "black", linetype = "dashed",
+    inherit.aes = FALSE ) +
+  annotate("text",
+           x = -0.8,
+           y = -0.45,
+           label = label_text,
+           parse= T,
+           hjust = 0, vjust = 0.2, size = 5) +
+    ylab(expression(italic(P)[Kleaf50] ~ "(" ~ "MPa" ~ ")"))+
+    xlab(expression(pi[tlp] ~ "(" ~ "MPa" ~ ")"))+
+  theme_minimal(base_size = 14) + ggtitle("F.")
+tlp_Kleaf50 
+
+
+####
+round(cor_res_s$r["osp.tlp", "Pembolism"], 2)
+signif(cor_res_s$P["osp.tlp", "Pembolism"], 2)
+round(cor_res_p$r["osp.tlp", "Pembolism"], 2)
+signif(cor_res_p$P["osp.tlp", "Pembolism"], 2)
+label_text <-"atop(italic(r)[s] ~ '=' * '0.49' ~ 'ns',italic(r)[p] ~ '=' * '0.31' ~ 'ns')"
+
+tlp_embolism <-ggplot(df, aes(x = osp.tlp, y = Pembolism, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(
+    aes(x = osp.tlp, y = Pembolism),   # re-specify to ignore grouping
+    method = "lm", se = FALSE, color = "black", linetype = "dashed",
+    inherit.aes = FALSE ) +
+  annotate("text",
+           x = -0.8,
+           y = -0.45,
+           label = label_text,
+           parse= T,
+           hjust = 0, vjust = 0.2, size = 5) +
+    ylab(expression(italic(P)[embolism onset] ~ "(" ~ "MPa" ~ ")"))+
+    xlab(expression(pi[tlp] ~ "(" ~ "MPa" ~ ")"))+
+  theme_minimal(base_size = 14) + ggtitle("F.")
+tlp_embolism 
+
+
+##########
+embolism_PA50 <-ggplot(df, aes(x = RWC_embolism_onset , y = PA50, colour = Metabolism)) +
+  geom_point(size = 3.6) +
+  scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
+  geom_smooth(
+    aes(x = RWC_embolism_onset , y = PA50),   # re-specify to ignore grouping
+    method = "lm", se = FALSE, color = "black", linetype = "dashed",
+    inherit.aes = FALSE ) +
+  annotate("text",
+           x = 57,
+           y = -0.98,
+           label = label_text,
+           hjust = 0, vjust = 0.2, size = 5) +
+   xlab(expression(RWC[embolism] ~ "(" ~ "%" ~ ")"))+
+   ylab(expression(italic(P)[A50] ~ "(" * MPa * ")"))+
+  theme_minimal(base_size = 14)+ ggtitle("C.")
+
+embolism_gs50
+
+embolism_Kleaf
+
+embolism_PLCFR50
+
+
+
+
+
+################ Figure by theme
+
+themeA <- ggarrange(Kleafmax_Krootmax,Kleafmax_Amax, Kleafmax_gsmax, NULL, ncol = 4,  common.legend = T, legend = "none")
+
+themeA_bis <- annotate_figure(
+  themeA,
+  top = text_grob("Hydraulic coordination and gas exchange", size = 16)
+)
+
+themeB <- ggarrange(tlp_A50, tlp_gs50, tlp_Kleaf50, tlp_embolism, common.legend = T, legend = "none", ncol = 4) + labs(title = "B.")#
+
+themeC <- ggarrange(embolism_A50, embolism_gs50, embolism_Kleaf, embolism_PLCFR50, common.legend = T, legend = "none", ncol = 4) + labs(title = "C.")#
+
+
+bigfig <- ggarrange(themeA, 
+                    themeB, 
+                    themeC,
+                    ncol = 1, nrow =3)
+
+bigfig
+
+
+ggsave("../results/correlation_themes.jpg", bigfig, width = 10, height = 8, dpi = 300)
+
+```
 
 
 
