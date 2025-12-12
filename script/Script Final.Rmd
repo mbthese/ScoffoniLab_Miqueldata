@@ -2319,7 +2319,7 @@ scale_fill_manual(values = mycols)+
         legend.title = element_text(size = 14),
         legend.text=element_text(size=14, face="italic"))+
   xlab(expression(paste("RWC (%)")))+
-  ylab(expression(paste("CFD")))+
+  ylab(expression(F[v]/F[m]))+
   labs(color = "Species", fill = "Species")+
   ylim(0,1)
 
@@ -2447,23 +2447,37 @@ ED50_CFR
 write.csv(ED50_CFR, "../results/ED50_CFR.csv", row.names = FALSE)
 
 #for plotting
-newdata.avsa_CFR <- newdata_CFR %>% mutate(species = "Avsa")
-newdata.trae_CFR <- newdata_CFR %>% mutate(species = "Trae")
-newdata.hovu_CFR <- newdata_CFR %>% mutate(species = "Hovu")
-newdata.pegl_CFR <- newdata_CFR %>% mutate(species = "Pegl")
-newdata.chga_CFR <- newdata_CFR %>% mutate(species = "Chga")
-newdata.zema_CFR <- newdata_CFR %>% mutate(species = "Zema")
+FVFM_recovery_curve <- FVFM_recovery_curve %>%
+  mutate(
+    species = recode(species,
+      "Zema" = "Z. mays",
+      "Chga" = "C. gayana",
+      "Pegl" = "P. glaucum",
+      "Avsa" = "A. sativa",
+      "Hovu" = "H. vulgare",
+      "Trae" = "T. aestivum"
+    )
+  )
 
+#for plotting
+newdata.avsa_CFR <- newdata.avsa_CFR %>% mutate(species = "A. sativa")
+newdata.trae_CFR <- newdata.trae_CFR %>% mutate(species = "T. aestivum")
+newdata.hovu_CFR <- newdata.hovu_CFR%>% mutate(species = "H. vulgare")
+newdata.pegl_CFR <- newdata.pegl_CFR %>% mutate(species = "P. glaucum")
+newdata.chga_CFR <- newdata.chga_CFR  %>% mutate(species = "C. gayana")
+newdata.zema_CFR <- newdata.zema_CFR %>% mutate(species = "Z. mays")
 
 # Plot
 mycols <- c(
-  "Avsa"="#6DB9F8",
-  "Hovu"="#002F6C",
-  "Trae"="#CFEAFF",
-  "Pegl"="#E08C1F",
-  "Chga"="#8A5F00",
-  "Zema"="#F2D06A"
+  "A. sativa"="#6DB9F8",
+  "H. vulgare"="#002F6C",
+  "T. aestivum"="#CFEAFF",
+  "P. glaucum"="#E08C1F",
+  "C. gayana"="#8A5F00",
+  "Z. mays"="#F2D06A"
 )
+
+
 
 CFR <- ggplot(FVFM_recovery_curve,aes(x=F.RWC,y=CFR))+
   geom_abline(slope=0,intercept=0,colour="grey")+
@@ -2485,11 +2499,11 @@ scale_fill_manual(values = mycols)+
   geom_line(data=newdata.pegl_CFR, aes(x=F.RWC, y=p.pegl, color=species), size=2)+
   geom_line(data=newdata.chga_CFR, aes(x=F.RWC, y=p.chga, color=species), size=2)+
  # geom_line(data=newdata.zema, aes(x=F.RWC, y=p.zema, color=species), size=2)+
-   geom_vline(xintercept=ED50.avsa_CFR,color=mycols["Avsa"],lty=5, linewidth = 1)+
-   geom_vline(xintercept=ED50.trae_CFR,color=mycols["Trae"],lty=5, linewidth = 1)+
-   geom_vline(xintercept=ED50.hovu_CFR,color=mycols["Hovu"],lty=5, linewidth = 1)+
-   geom_vline(xintercept=ED50.pegl_CFR,color=mycols["Pegl"],lty=5, linewidth = 1)+
-   geom_vline(xintercept=ED50.chga_CFR,color=mycols["Chga"],lty=5, linewidth = 1)+
+   geom_vline(xintercept=ED50.avsa_CFR,color=mycols["A. sativa"],lty=5, linewidth = 1)+
+   geom_vline(xintercept=ED50.trae_CFR,color=mycols["T. aestivum"],lty=5, linewidth = 1)+
+   geom_vline(xintercept=ED50.hovu_CFR,color=mycols["H. vulgare"],lty=5, linewidth = 1)+
+   geom_vline(xintercept=ED50.pegl_CFR,color=mycols["P. glaucum"],lty=5, linewidth = 1)+
+   geom_vline(xintercept=ED50.chga_CFR,color=mycols["C. gayana"],lty=5, linewidth = 1)+
  #  geom_vline(xintercept=ED50.zema,color=mycols["Zema"],lty=5, linewidth = 1)+
   xlim(0,100)+
   theme_minimal()+
@@ -2497,17 +2511,20 @@ scale_fill_manual(values = mycols)+
         #panel.grid.major=element_blank(),
         axis.title.y=element_text(size=14),
         axis.text.y=element_text(size=14),
-        axis.title.x=element_blank(),
+        axis.title.x=element_text(size= 14),
         axis.text.x=element_text(size=14),
        legend.title = element_text(size = 14),
         legend.text=element_text(size=14, face="italic"))+
   xlab(expression(paste("RWC (%)")))+
-  ylab(expression(paste("CFR")))+
+  ylab(expression(F[v]/F[m]))+
   labs(color = "Species", fill = "Species")+
   ylim(0,1)
 
 
 CFR
+
+ggsave(filename = "../results/FigureSI_CFR.jpg", plot = CFR,  width = 8, height = 6)
+
 ```
 
 
@@ -2778,7 +2795,7 @@ PLRC
 ```
 
 
-##Figure 3 - ALL PLOTS PLRC + CFD + CFR
+##Figure 3 - ALL PLOTS PLRC + CFD 
 
 ```{r}
 # Extract the legend
@@ -2789,13 +2806,12 @@ plot(legend) #to check if it plots
 #now remove the legend from the plots
 PLRC_without_legend <- PLRC + theme(legend.position = "none")
 CFD_without_legend <- CFD + theme(legend.position = "none")
-CFR_without_legend <- CFR + theme(legend.position = "none")
 
 
-Figure3 <- ggarrange(CFD_without_legend, CFR_without_legend, PLRC_without_legend, legend, ncol = 1, nrow = 4, labels = c("A", "B", "C", ""),heights = c(1,1,1,0.4) )
+Figure3 <- ggarrange(CFD_without_legend, PLRC_without_legend, legend, ncol = 1, nrow = 3, labels = c("A", "B", ""),heights = c(1,1,0.2))
 Figure3
 
-ggsave(filename = "../results/Figure3.jpg", plot = Figure3,  width = 8, height = 12)
+ggsave(filename = "../results/Figure3.jpg", plot = Figure3,  width = 8, height = 10)
 ```
 
 
@@ -5206,6 +5222,10 @@ Table1_RWC_summary <- Table1_RWC %>%
     .groups = "drop"
   )
 
+#remove CFR
+Table1_RWC_summary <- Table1_RWC_summary %>%
+  select(-CFR_mean, -CFR_se)
+
 # Passer en format long
 Table1_RWC_long <- Table1_RWC_summary %>%
   pivot_longer(
@@ -5232,13 +5252,14 @@ trait_labels <- c(
   RWC.WUEi   = expression(WUE[imax]),
   RWC.Pgs50      = expression(italic(g)[s50]),
   RWC.PA50       = expression(italic(A)[50]),
-  CFD = expression(CFD[50]),
-  CFR     = expression(CFR[50]),
+  CFD = expression(italic(F)[v]/italic(F)[m50]),
+#  CFR     = expression(CFR[50]),
   m.embolism.onset = "Embolism onset",
   PLRC       = expression(PLRC[50]),
   RWCPLA25      = expression(PLA[25]),
   RWCPLT25      = expression(PLT[25]),
   RWCPLW25      = expression(PLW[25]))
+  
 
 Figure4_RWC <- ggplot(Table1_RWC_long, aes(x = mean, y = trait, color = Metabolism)) +
   geom_point(size = 4, position = position_dodge(width = 0.5)) +
@@ -5281,6 +5302,10 @@ Table1_psi_summary <- Table1_psi %>%
     .groups = "drop"
   )
 
+#remove CFR
+Table1_psi_summary  <- Table1_psi_summary  %>%
+  select(-CFR_psi_mean, -CFR_psi_se)
+
 # Passer en format long
 Table1_psi_long <- Table1_psi_summary %>%
   pivot_longer(
@@ -5307,8 +5332,8 @@ trait_labels <- c(
   PWUEimax   = expression(WUE[imax]),
   Pgs50      = expression(italic(g)[s50]),
   PA50       = expression(italic(A)[50]),
-  CFD_psi = expression(CFD[50]),
-  CFR_psi   = expression(CFR[50]),
+  CFD_psi =  expression(italic(F)[v]/italic(F)[m50]),
+#  CFR_psi   = expression(CFR[50]),
   m.embolism.onset_psi = "Embolism onset",
   PLRC_psi       = expression(PLRC[50]),
   RWCPLA25_psi      = expression(PLA[25]),
@@ -5550,9 +5575,9 @@ label_text <- "atop(italic(r)[s] == 0.2 * 'ns',                     italic(r)[p]
 Kleafmax_Amax <-ggplot(Table_psi_rename , aes(x = Amax, y = Kleafmax, colour = Metabolism)) +
   geom_point(size = 3.6) +
   scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
-  geom_smooth(aes(x = Amax, y = Kleafmax), method = "lm",
-              se = FALSE, color = "black", linetype = "dashed",
-              inherit.aes = FALSE) +
+  # geom_smooth(aes(x = Amax, y = Kleafmax), method = "lm",
+  #             se = FALSE, color = "black", linetype = "dashed",
+  #             inherit.aes = FALSE) +
   annotate("text",
            x =38,
            y = 60,
@@ -5660,10 +5685,10 @@ label_text <-"atop(italic(r)[s] ~ '=' * '0.49' ~ 'ns',italic(r)[p] ~ '=' * '0.31
 tlp_Kleaf50 <-ggplot(Table_psi_rename, aes(y = πtlp, x = PKleaf50, colour = Metabolism)) +
   geom_point(size = 3.6) +
   scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
-  geom_smooth(
-    aes(y = πtlp, x = PKleaf50),   # re-specify to ignore grouping
-    method = "lm", se = FALSE, color = "black", linetype = "dashed",
-    inherit.aes = FALSE ) +
+  # geom_smooth(
+  #   aes(y = πtlp, x = PKleaf50),   # re-specify to ignore grouping
+  #   method = "lm", se = FALSE, color = "black", linetype = "dashed",
+  #   inherit.aes = FALSE ) +
   annotate("text",
            x = -0.4,
            y = -0.8,
@@ -5777,10 +5802,10 @@ label_text <-"atop(italic(r)[s] ~ '=' * '-0.54' ~ 'ns',italic(r)[p] ~ '=' * '-0.
 embolism_Kleaf50 <-ggplot(Table_psi_rename, aes(y = `Embolism onset` , x = PKleaf50, colour = Metabolism)) +
   geom_point(size = 3.6) +
   scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
-  geom_smooth(
-    aes(y = `Embolism onset` , x = PKleaf50),  
-    method = "lm", se = FALSE, color = "black", linetype = "dashed",
-    inherit.aes = FALSE ) +
+  # geom_smooth(
+  #   aes(y = `Embolism onset` , x = PKleaf50),  
+  #   method = "lm", se = FALSE, color = "black", linetype = "dashed",
+  #   inherit.aes = FALSE ) +
   annotate("text",
            x = -0.35,
            y = -1.5,
@@ -5804,10 +5829,10 @@ label_text <-"atop(italic(r)[s] ~ '=' * '0.71' ~ 'ns',italic(r)[p] ~ '=' * '0.69
 embolism_CFD <-ggplot(Table_psi_rename, aes(y = `Embolism onset` , x = CFD, colour = Metabolism)) +
   geom_point(size = 3.6) +
   scale_color_manual(values = c(C3 = "#6DB9F8", C4 = "#D9AB33")) +
-  geom_smooth(
-    aes(y = `Embolism onset` , x = CFD),  
-    method = "lm", se = FALSE, color = "black", linetype = "dashed",
-    inherit.aes = FALSE ) +
+  # geom_smooth(
+  #   aes(y = `Embolism onset` , x = CFD),  
+  #   method = "lm", se = FALSE, color = "black", linetype = "dashed",
+  #   inherit.aes = FALSE ) +
   annotate("text",
            x = -6,
            y = -1.5,
