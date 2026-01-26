@@ -1925,8 +1925,8 @@ avsa_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("A. sativa")+
-   annotate("text", x = -2, y =200, label = "r² = 0.37", size = 5)+
-  annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
+   annotate("text", x = -2, y =200, label = "italic(R)^2 == 0.37", size = 5, parse= T)+
+  annotate("text", x = -2, y =170, label = "italic(P) < 0.001", size = 5, parse =T)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
   xlim(0,-3)+
@@ -1968,8 +1968,8 @@ hovu_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("H. vulgare")+
-  annotate("text", x = -2, y =200, label = "r² = 0.21", size = 5)+
-   annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
+  annotate("text", x = -2, y =200, label = "italic(R)^2 == 0.21", size = 5, parse =T)+
+   annotate("text", x = -2, y =170, label = "italic(P) < 0.001", size = 5, parse =T)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
   xlim(0,-3)+
@@ -2010,8 +2010,8 @@ trae_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("T. aestivum")+
-  annotate("text", x = -2, y =200, label = "r² = 0.16", size = 5)+
-   annotate("text", x = -2, y =170, label = as.character(expression(P < 0.01)), size = 5)+
+  annotate("text", x = -2, y =200, label = "italic(R)^2 == 0.16", size = 5, parse =T)+
+   annotate("text", x = -2, y =170, label = "italic(P) < 0.01", size = 5, parse =T)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
   xlim(0,-3)+
@@ -2053,8 +2053,8 @@ chga_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("C. gayana")+
-  annotate("text", x = -2, y =200, label = "r² = 0.61", size = 5)+
-   annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
+  annotate("text", x = -2, y =200, label = "italic(R)^2 == 0.61", size = 5, parse =T)+
+   annotate("text", x = -2, y =170, label = "italic(P) < 0.001", size = 5,parse =T)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
   xlim(0,-3)+
@@ -2095,8 +2095,8 @@ pegl_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("P. glaucum")+
-  annotate("text", x = -2, y =200, label = "r² = 0.53", size = 5)+
-  annotate("text", x = -2, y =170, label = as.character(expression(P < 0.001)), size = 5)+
+  annotate("text", x = -2, y =200, label = "italic(R)^2 == 0.53", size = 5, parse =T)+
+  annotate("text", x = -2, y =170, label = "italic(P) < 0.001", size = 5, parse =T)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
   xlim(0,-3)+
@@ -2136,8 +2136,8 @@ zema_W_plot<-ggplot()+
         legend.title=element_text(),
         title = element_text(size=13, face = "bold.italic"))+
    ggtitle("Z. mays")+
-  annotate("text", x = -2, y =200, label = "r² = 0.22", size = 5)+
-  annotate("text", x = -2, y =170, label = as.character(expression(P < 0.05)), size = 5)+
+  annotate("text", x = -2, y =200, label = "italic(R)^2 == 0.22", size = 5, parse =T)+
+  annotate("text", x = -2, y =170, label = "italic(P) < 0.05", size = 5, parse =T)+
    ylab(expression(paste("WUE"[i])))+
   xlab(expression(paste(Psi["leaf"]," (MPa)")))+
   xlim(0,-3)+
@@ -5393,8 +5393,8 @@ Table_psi_rename <- Table_psi %>%
          e = m.em, 
          `Embolism onset` = m.embolism.onset_psi,
          PLRC = PLRC_psi,
-         CFD = CFD_psi,
-         CFR = CFR_psi,
+         FvFm50D = CFD_psi,
+         FvFvm50R = CFR_psi,
          PLT25 = RWCPLT25_psi,
          PLA25 = RWCPLA25_psi,
          PLW25 = RWCPLW25_psi,
