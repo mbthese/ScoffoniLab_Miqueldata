@@ -5868,3 +5868,198 @@ ggsave("../results/correlation.jpg", Figure6, width = 15, height = 15, dpi = 300
 
 ```
 
+#Lawren's analysis
+
+We tested for differences between photosynthetic types using linear mixed-effects models (nested ANOVA), with photosynthetic type as a fixed effect, species nested within photosynthetic type, and individual plants treated as random effects. Analyses were performed separately for K, A, g, and K/g using individual-level measurements restricted to Ψ > −1 MPa.
+
+This increases power, avoids pseudoreplication and we do not claim generality across all C3 and C4. We therefore can affirm that the tested species differ and affirm that these tested differences align with a photosynthetic type.
+```{r}
+
+GExdata<-read_xlsx(path = "../data/C3C4 Grasses - GEx_PsifrompVcurves.xlsx", sheet = "C3C4G GEx R")
+colnames(GExdata)
+GExdata$Dataset<-factor(GExdata$Dataset)
+GExdata$Metabolism<-factor(GExdata$Metabolism)
+GExdata$Species<-factor(GExdata$Species,levels=c("Avsa","Hovu","Trae","Pegl","Zema","Chga"))
+GExdata$Individual<-factor(GExdata$Individual)
+GExdata$Leaf<-factor(GExdata$Leaf)
+GExdata$Time.min<-factor(GExdata$Time.min)
+GExdata.dehy<-subset(GExdata,Dataset== "Dehydration") #here time varies from 0 to X minutes
+
+#get the correct invidual number:
+GExdata_indv<-read_xlsx(path = "../data/C3C4 Grasses - GEx_PsifrompVcurves.xlsx", sheet = "Dehydration (Data)") %>% select("...5", outlier, "Ψleaf", "Ca...20")
+
+#rename conlumns
+GExdata_indv<- GExdata_indv %>%
+  rename(Individual = outlier,
+         Species = "...5", 
+         "F.wp.leaf" = "Ψleaf",
+         Ca = "Ca...20") 
+
+GExdata_indv$F.wp.leaf <-as.numeric(GExdata_indv$F.wp.leaf)
+GExdata_indv$Ca <-as.numeric(GExdata_indv$Ca)
+
+#remove first row
+GExdata_indv<- GExdata_indv[-1,]
+
+#make the correspondance
+GExdata.dehy_with_indv<-GExdata.dehy %>%
+  select(-Individual) %>%
+  left_join(GExdata_indv, by=c("Species", "F.wp.leaf", "Ca")) %>%
+  relocate(Individual, .after = Metabolism)
+
+#select variables
+GExdata.dehy_with_indv<-GExdata.dehy_with_indv %>%
+  select(Species, Individual, Metabolism, "Psileaf from RWC", RWC, An.area, gsw.area)
+
+
+
+#add Kleaf
+#AVSA -----------
+Kleaf_avsa<-read_excel("../data/Kleaf_september13_2022.xlsx", sheet = "AVSA")
+Kleaf_avsa$`Lowest Psileaf` <- as.numeric(Kleaf_avsa$`Lowest Psileaf`)*-1
+Kleaf_avsa$`Kleaf Tcorr` <- as.numeric(Kleaf_avsa$`Kleaf Tcorr`)
+Kleaf_avsa$Kleaf_relative <- Kleaf_avsa$`Kleaf Tcorr`/max(Kleaf_avsa$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+#HOVU--------
+
+Kleaf_hovu<-read_excel("../data/Kleaf_september13_2022.xlsx", sheet = "HOVU") %>% dplyr::select(-`...27`)
+Kleaf_hovu$`Lowest Psileaf` <- as.numeric(Kleaf_hovu$`Lowest Psileaf`)*-1
+Kleaf_hovu$`Kleaf Tcorr` <- as.numeric(Kleaf_hovu$`Kleaf Tcorr`)
+Kleaf_hovu$Kleaf_relative <- Kleaf_hovu$`Kleaf Tcorr`/max(Kleaf_hovu$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+#TRAE -------------
+Kleaf_trae<-read_excel("../data/Kleaf_september13_2022.xlsx", sheet = "TRAE")
+Kleaf_trae$`Lowest Psileaf` <- as.numeric(Kleaf_trae$`Lowest Psileaf`)*-1
+Kleaf_trae$`Kleaf Tcorr` <- as.numeric(Kleaf_trae$`Kleaf Tcorr`)
+Kleaf_trae$Kleaf_relative <- Kleaf_trae$`Kleaf Tcorr`/max(Kleaf_trae$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+
+#PEGL ---------
+Kleaf_pegl<-read_excel("../data/Kleaf_september13_2022.xlsx", sheet = "PEGL")
+Kleaf_pegl$`Lowest Psileaf` <- as.numeric(Kleaf_pegl$`Lowest Psileaf`)*-1
+Kleaf_pegl$`Kleaf Tcorr` <- as.numeric(Kleaf_pegl$`Kleaf Tcorr`)
+Kleaf_pegl$Kleaf_relative <- Kleaf_pegl$`Kleaf Tcorr`/max(Kleaf_pegl$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+#CHGA----------
+Kleaf_chga<-read_excel("../data/Kleaf_september13_2022.xlsx", sheet = "CHGA")
+Kleaf_chga$`Lowest Psileaf` <- as.numeric(Kleaf_chga$`Lowest Psileaf`)*-1
+Kleaf_chga$`Kleaf Tcorr` <- as.numeric(Kleaf_chga$`Kleaf Tcorr`)
+Kleaf_chga$Kleaf_relative <- Kleaf_chga$`Kleaf Tcorr`/max(Kleaf_chga$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+#ZEMA----------
+Kleaf_zema<-read_excel("../data/Kleaf_september13_2022.xlsx", sheet = "ZEMA")
+Kleaf_zema$`Lowest Psileaf` <- as.numeric(Kleaf_zema$`Lowest Psileaf`)*-1
+Kleaf_zema$`Kleaf Tcorr` <- as.numeric(Kleaf_zema$`Kleaf Tcorr`)
+Kleaf_zema$Kleaf_relative <- Kleaf_zema$`Kleaf Tcorr`/max(Kleaf_zema$`Kleaf Tcorr`,na.rm=TRUE)*100
+
+Kleaf <- rbind(Kleaf_avsa, Kleaf_hovu, Kleaf_trae, Kleaf_pegl, Kleaf_zema, Kleaf_chga)
+
+
+Kleaf_curve <- Kleaf %>%
+  mutate(psi_neg =  `Lowest Psileaf`) %>%
+  dplyr::select(Species,Individual, psi_neg, `Kleaf Tcorr`) 
+
+Kleaf_curve <- Kleaf_curve %>%
+  rename("F.wp.leaf" = psi_neg)
+
+Kleaf_curve$Individual <- as.character(Kleaf_curve$Individual)
+
+
+#No individual numbers for Kplant Add Kroot
+
+
+#Add dataframe together
+#before adding Kleaf, let's add a column to this dataset 
+GExdata.dehy_with_indv$`Kleaf Tcorr` <- NA
+Kleaf_curve$"An.area"  <- NA
+Kleaf_curve$"gsw.area"  <- NA
+Kleaf_curve$RWC  <- NA
+
+GExdata.dehy_with_indv <- GExdata.dehy_with_indv%>%
+  rename("F.wp.leaf" = "Psileaf from RWC")
+
+colnames(GExdata.dehy_with_indv)
+colnames(Kleaf_curve)
+
+Kleaf_curve <- Kleaf_curve %>%
+  mutate(Metabolism = case_when(
+    Species == "AVSA" ~ "C3",
+    Species == "HOVU" ~ "C3",
+    Species == "TRAE" ~ "C3",
+    Species == "CHGA" ~ "C4",
+    Species == "PEGL" ~ "C4",
+    Species == "ZEMA" ~ "C4",
+    TRUE ~ NA))
+
+colnames(GExdata.dehy_with_indv)
+colnames(Kleaf_curve)
+
+df <- rbind(GExdata.dehy_with_indv, Kleaf_curve, by= c("Species"))
+df <- df %>% filter(!is.na(Species))
+
+
+#Pre-processing: filter and compute K/g
+df$F.wp.leaf <- as.numeric(df$F.wp.leaf)
+
+df <- df %>%
+  mutate(
+    F.wp.leaf   = parse_number(F.wp.leaf),
+    gsw.area    = parse_number(gsw.area),
+    `Kleaf Tcorr` = parse_number(`Kleaf Tcorr`))
+
+
+df_filt <- df %>%
+  filter(F.wp.leaf > -1) %>%                 # threshold for "well-watered-ish"
+  mutate(
+    Kleaf = as.numeric(`Kleaf Tcorr`),
+    gs = as.numeric(gsw.area),
+    Kg = Kleaf / gs,
+    Species = factor(Species),
+    Metabolism = factor(Metabolism),
+    Individual = factor(Individual))
+
+library(lme4)
+library(lmerTest)   # gives p-values
+
+mod_Kleaf <- lmer(
+  Kleaf ~ Metabolism + Species + (1 | Individual),
+  data = df_filt)
+
+summary(mod_Kleaf)
+anova(mod_Kleaf)
+
+#Although mean Kleaf tended to be lower in C4 species under well-watered conditions, this difference was not significant (p = 0.20) and was small relative to interspecific and interindividual variability.
+
+df_filt$An.area<- as.numeric(df_filt$An.area)
+
+mod_A <- lmer(
+  An.area ~ Metabolism + Species + (1 | Individual),
+  data = df_filt)
+
+summary(mod_A)
+anova(mod_A)
+
+#Assimilation was significantly lower in C4 than in C3 species  p = 0.042)
+
+df_filt$gsw.area<- as.numeric(df_filt$gsw.area)
+
+mod_g <- lmer(
+  gsw.area  ~  Metabolism + Species + (1 | Individual),
+  data = df_filt)
+
+summary(mod_g)
+anova(mod_g)
+
+#gs was significantly lower in C4 than in C3 species (linear mixed model with species as a random effect; p = 0.016), with negligible variance attributable to individuals within species.
+
+
+#testing speceis difference within photosynthetic types
+library(emmeans)
+
+emmeans(mod_Kleaf, ~ Species)
+emmeans(mod_A, ~ Species)
+emmeans(mod_g, ~ Species)
+
+
+```
+
